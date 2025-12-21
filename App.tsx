@@ -40,42 +40,51 @@ const App: React.FC = () => {
   React.useEffect(() => {
     // 0. Check Web Hash on Mount (For Browser Support)
     if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      console.log("Recovery hash detected!");
       setIsPasswordReset(true);
     }
 
     // 1. Listen for Supabase Auth Events (Magic Link / Recovery)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth Event:", event);
       if (event === 'PASSWORD_RECOVERY') {
+        console.log("Password Recovery Event Triggered!");
         setIsPasswordReset(true);
       }
     });
 
     // 2. Listen for Deep Links (Android)
-    CapacitorApp.addListener('appUrlOpen', async (data) => {
-      try {
-        const urlStr = data.url;
-        // Check for 'reset-password' path OR 'type=recovery' param
-        if (urlStr.includes('reset-password') || urlStr.includes('type=recovery')) {
-          const url = new URL(urlStr);
-          const hash = url.hash.substring(1);
-          const params = new URLSearchParams(hash);
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
+    const setupDeepLinks = async () => {
+      await CapacitorApp.removeAllListeners();
 
-          if (accessToken && refreshToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            });
-            if (!error) {
-              setIsPasswordReset(true);
+      CapacitorApp.addListener('appUrlOpen', async (data) => {
+        try {
+          const urlStr = data.url;
+          // Check for 'reset-password' path OR 'type=recovery' param
+          if (urlStr.includes('reset-password') || urlStr.includes('type=recovery')) {
+            const url = new URL(urlStr);
+            const hash = url.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (accessToken && refreshToken) {
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
+              if (!error) {
+                setIsPasswordReset(true);
+              }
             }
           }
+        } catch (e) {
+          console.error('Error handling deep link:', e);
         }
-      } catch (e) {
-        console.error('Error handling deep link:', e);
-      }
-    });
+      });
+    };
+
+    setupDeepLinks();
 
     return () => {
       subscription.unsubscribe();
