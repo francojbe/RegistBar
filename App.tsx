@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [showSupplyExpense, setShowSupplyExpense] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [isCheckingRecovery, setIsCheckingRecovery] = useState(true); // New Blocker State
 
   // Handle Password Recovery & Deep Links
   React.useEffect(() => {
@@ -43,6 +44,8 @@ const App: React.FC = () => {
       console.log("Recovery hash detected!");
       setIsPasswordReset(true);
     }
+    // Release the blocker immediately after checking the URL
+    setIsCheckingRecovery(false);
 
     // 1. Listen for Supabase Auth Events (Magic Link / Recovery)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -313,7 +316,7 @@ const App: React.FC = () => {
     }
   ];
 
-  if (loading) {
+  if (loading || isCheckingRecovery) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background-dark text-white">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
