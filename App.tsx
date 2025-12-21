@@ -38,6 +38,11 @@ const App: React.FC = () => {
 
   // Handle Password Recovery & Deep Links
   React.useEffect(() => {
+    // 0. Check Web Hash on Mount (For Browser Support)
+    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      setIsPasswordReset(true);
+    }
+
     // 1. Listen for Supabase Auth Events (Magic Link / Recovery)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
@@ -48,15 +53,14 @@ const App: React.FC = () => {
     // 2. Listen for Deep Links (Android)
     CapacitorApp.addListener('appUrlOpen', async (data) => {
       try {
-        const url = new URL(data.url);
-        // Check for reset-password path or fragments
-        if (data.url.includes('reset-password')) {
-          // Extract tokens from hash (#access_token=...)
+        const urlStr = data.url;
+        // Check for 'reset-password' path OR 'type=recovery' param
+        if (urlStr.includes('reset-password') || urlStr.includes('type=recovery')) {
+          const url = new URL(urlStr);
           const hash = url.hash.substring(1);
           const params = new URLSearchParams(hash);
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
-          const type = params.get('type');
 
           if (accessToken && refreshToken) {
             const { error } = await supabase.auth.setSession({
