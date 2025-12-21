@@ -42,8 +42,8 @@ export const ResetPasswordView: React.FC = () => {
                 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
                 if (isMobile) {
-                    // Try to open the Native App
-                    window.location.href = 'com.registbar.app://';
+                    // Try to open the Native App with dedicated action path
+                    window.location.href = 'com.registbar.app://auth/action_complete';
 
                     // Fallback to web login if app fails to open
                     setTimeout(() => {

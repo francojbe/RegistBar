@@ -87,6 +87,12 @@ const App: React.FC = () => {
               }
             }
           }
+          // Check for completion action (e.g. Password Updated externally)
+          else if (urlStr.includes('action_complete')) {
+            console.log("Action complete deep link detected. Signing out stale session.");
+            await supabase.auth.signOut();
+            window.location.reload(); // Reload to force clean state (Login View)
+          }
         } catch (e) {
           console.error('Error handling deep link:', e);
         }
