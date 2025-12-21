@@ -34,6 +34,9 @@ export const ResetPasswordView: React.FC = () => {
 
             setMessage({ text: '¡Contraseña actualizada con éxito!', type: 'success' });
 
+            // Clear recovery mode
+            sessionStorage.removeItem('recovery_mode');
+
             // Redirect to home after a delay
             setTimeout(() => {
                 window.location.href = '/'; // Or let the AuthContext handle the redirect if session is valid

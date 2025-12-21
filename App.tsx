@@ -34,7 +34,10 @@ const App: React.FC = () => {
   const [showNewService, setShowNewService] = useState(false);
   const [showSupplyExpense, setShowSupplyExpense] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(() => {
+    // Persist recovery state across re-renders
+    return sessionStorage.getItem('recovery_mode') === 'true';
+  });
   const [isCheckingRecovery, setIsCheckingRecovery] = useState(true); // New Blocker State
 
   // Handle Password Recovery & Deep Links
@@ -42,6 +45,7 @@ const App: React.FC = () => {
     // 0. Check Web Hash on Mount (For Browser Support)
     if (window.location.hash && window.location.hash.includes('type=recovery')) {
       console.log("Recovery hash detected!");
+      sessionStorage.setItem('recovery_mode', 'true');
       setIsPasswordReset(true);
     }
     // Release the blocker immediately after checking the URL
@@ -52,6 +56,7 @@ const App: React.FC = () => {
       console.log("Auth Event:", event);
       if (event === 'PASSWORD_RECOVERY') {
         console.log("Password Recovery Event Triggered!");
+        sessionStorage.setItem('recovery_mode', 'true');
         setIsPasswordReset(true);
       }
     });
@@ -77,6 +82,7 @@ const App: React.FC = () => {
                 refresh_token: refreshToken
               });
               if (!error) {
+                sessionStorage.setItem('recovery_mode', 'true');
                 setIsPasswordReset(true);
               }
             }
@@ -144,7 +150,7 @@ const App: React.FC = () => {
 
   // Fetch Data function to be reused
   const fetchData = async () => {
-    if (!user) return;
+    if (!user || isPasswordReset) return;
 
     // 1. Fetch Transactions
     const { data: txData, error: txError } = await supabase
