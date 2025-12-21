@@ -1,0 +1,47 @@
+{
+  "name": "fiscal-dashboard",
+  "private": true,
+  "version": "1.0.5",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "android": "npx cap open android",
+    "sync": "npx cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
+    "@supabase/supabase-js": "^2.88.0",
+    "capacitor-native-biometric": "^4.2.2",
+    "framer-motion": "^12.23.26",
+    "heic2any": "^0.0.4",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
+    "ogl": "^1.0.11",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-easy-crop": "^5.5.6",
+    "recharts": "^3.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

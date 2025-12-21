@@ -1,0 +1,196 @@
+{
+    "name": "RegistBar Receipt Scanner V2",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "scan-receipt-v2",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                0
+            ],
+            "id": "webhook-trigger",
+            "name": "Webhook Receiver (POST)"
+        },
+        {
+            "parameters": {
+                "httpMethod": "OPTIONS",
+                "path": "scan-receipt-v2",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                250
+            ],
+            "id": "webhook-options",
+            "name": "Webhook Receiver (OPTIONS)"
+        },
+        {
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "OK",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "POST, OPTIONS"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "*"
+                            }
+                        ]
+                    }
+                }
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                250
+            ],
+            "id": "cors-response",
+            "name": "CORS Response"
+        },
+        {
+            "parameters": {
+                "resource": "chat",
+                "model": "gpt-4o-mini",
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=Actúa como un sistema experto de OCR y extracción de datos para contabilidad. Tu tarea es extraer la información de la factura o boleta proporcionada y devolverla estrictamente en formato JSON plano.\n\nCampos a extraer (claves JSON obligatorias):\n\nnombre_comercio: (String) El nombre de la tienda o proveedor.\n\nrut: (String) El RUT del emisor (formato XX.XXX.XXX-X).\n\nmedio_pago: (String) Efectivo, Débito, Crédito, etc.\n\nfecha: (String) IMPORTANTE: Convierte la fecha al formato ISO internacional YYYY-MM-DD (Ej: 2025-11-22).\n\ntotal: (Integer) El monto final. Solo números enteros.\n\nReglas de Salida:\n\nResponde ÚNICAMENTE con el objeto JSON.\n\nNo uses bloques de código Markdown.\n\nNo agregues texto introductorio.\n\nSi un dato no es visible, usa null.",
+                            "role": "system"
+                        },
+                        {
+                            "content": "Analiza esta imagen.",
+                            "role": "user",
+                            "type": "image_url",
+                            "imageUrl": {
+                                "url": "=data:{{ $binary.file.mimeType }};base64,{{ $binary.file.data }}"
+                            }
+                        }
+                    ]
+                },
+                "options": {
+                    "temperature": 0
+                }
+            },
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                400,
+                0
+            ],
+            "id": "ai-extractor",
+            "name": "OpenAI Vision",
+            "credentials": {
+                "openAiApi": {
+                    "id": "RkIzo2P0TOKHD12x",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const results = [];\n\nfunction cleanMoney(val) {\n  if (!val) return 0;\n  if (typeof val === 'number') return val;\n  const num = parseInt(String(val).replace(/[^0-9-]/g, ''), 10);\n  return isNaN(num) ? 0 : num;\n}\n\nfunction cleanDate(val) {\n  if (!val) return null;\n  // Basic YYYY-MM-DD validation/pass-through\n  return val;\n}\n\nfor (const item of $input.all()) {\n  const rawText = item.json.content || item.json.message?.content || \"{}\";\n  let extractedData = {};\n  try {\n    const textToParse = typeof rawText === 'string' \n      ? rawText.replace(/```json/g, '').replace(/```/g, '').trim()\n      : rawText;\n    extractedData = typeof textToParse === 'object' ? textToParse : JSON.parse(textToParse);\n  } catch (e) {\n    extractedData = {};\n  }\n\n  const finalObj = {\n    nombre_comercio: extractedData.nombre_comercio || \"Desconocido\",\n    rut_emisor: extractedData.rut || extractedData.rut_emisor || null,\n    medio_pago: extractedData.medio_pago || \"Efectivo\",\n    fecha_gasto: cleanDate(extractedData.fecha || extractedData.fecha_gasto),\n    monto_total: cleanMoney(extractedData.total || extractedData.monto_total)\n  };\n\n  results.push({ json: finalObj });\n}\n\nreturn results;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                750,
+                0
+            ],
+            "id": "data-cleanup",
+            "name": "Clean Data"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json }}",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "POST, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                0
+            ],
+            "id": "response-node",
+            "name": "Return JSON"
+        }
+    ],
+    "settings": {},
+    "connections": {
+        "Webhook Receiver (POST)": {
+            "main": [
+                [
+                    {
+                        "node": "OpenAI Vision",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Receiver (OPTIONS)": {
+            "main": [
+                [
+                    {
+                        "node": "CORS Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Vision": {
+            "main": [
+                [
+                    {
+                        "node": "Clean Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Clean Data": {
+            "main": [
+                [
+                    {
+                        "node": "Return JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

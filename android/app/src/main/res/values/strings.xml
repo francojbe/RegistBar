@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RegistBar</string>
+    <string name="title_activity_main">RegistBar</string>
+    <string name="package_name">com.registbar.app</string>
+    <string name="custom_url_scheme">com.registbar.app</string>
+    <string name="server_client_id">507498495844-a6t102dmlfh4tffgj8o8f61uls2oc8n0.apps.googleusercontent.com</string>
+</resources>

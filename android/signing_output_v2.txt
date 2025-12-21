@@ -1,0 +1,120 @@
+Starting a Gradle Daemon, 3 incompatible and 2 stopped Daemons could not be reused, use --status for details
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Task :app:signingReport
+Variant: debug
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+Variant: release
+Config: null
+Store: null
+Alias: null
+----------
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-android:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-cordova-android-plugins:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-filesystem:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-local-notifications:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-native-biometric:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :capacitor-share:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+> Task :codetrix-studio-capacitor-google-auth:signingReport
+Variant: debugAndroidTest
+Config: debug
+Store: C:\Users\franc\.android\debug.keystore
+Alias: AndroidDebugKey
+MD5: 9A:F4:1C:F3:1E:04:0B:B4:91:D0:1C:8F:1E:C0:5B:7F
+SHA1: C8:4F:E7:B0:5A:8C:B7:86:AA:FC:3F:2D:12:3A:01:75:B8:10:38:A1
+SHA-256: D6:FB:F1:1F:C3:67:B4:DD:FC:8A:67:27:4C:20:23:BA:19:5C:C5:4E:CD:ED:E7:1E:A4:C1:4B:B7:4F:00:1B:4B
+Valid until: sábado, 21 de agosto de 2055
+----------
+
+[Incubating] Problems report is available at: file:///C:/Users/franc/.gemini/antigravity/scratch/RegistBar/android/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 37s
+8 actionable tasks: 8 executed
