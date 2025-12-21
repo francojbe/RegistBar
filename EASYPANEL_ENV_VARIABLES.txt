@@ -1,0 +1,25 @@
+AQUÍ ESTÁN TUS VARIABLES PARA EASYPANEL (COPIAR Y PEGAR):
+
+=======================================================
+NOMBRE:
+VITE_SUPABASE_URL
+
+VALOR:
+https://pszkcntmkvtylvwnuflg.supabase.co
+=======================================================
+
+=======================================================
+NOMBRE:
+VITE_SUPABASE_ANON_KEY
+
+VALOR:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzemtjbnRta3Z0eWx2d251ZmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MjYxNTEsImV4cCI6MjA4MTUwMjE1MX0.Jf-3hCeJWKaVWAKsrfezg9Ak07wrl9YqRs4-kztWEMo
+=======================================================
+
+=======================================================
+NOMBRE:
+VITE_GOOGLE_CLIENT_ID
+
+VALOR:
+507498495844-a6t102dmlfh4tffgj8o8f61uls2oc8n0.apps.googleusercontent.com
+=======================================================

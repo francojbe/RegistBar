@@ -93,7 +93,7 @@ export const LoginView: React.FC = () => {
         setError(null);
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: 'com.registbar.app://reset-password', // Deep Link for Android
+                redirectTo: 'https://registbar.efinnovation.cl',
             });
             if (error) throw error;
             setConfirmationSent(true);
