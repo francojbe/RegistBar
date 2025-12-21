@@ -37,10 +37,22 @@ export const ResetPasswordView: React.FC = () => {
             // Clear recovery mode
             sessionStorage.removeItem('recovery_mode');
 
-            // Redirect to home after a delay
+            // Redirect to App (Mobile) or Home (Web)
             setTimeout(() => {
-                window.location.href = '/'; // Or let the AuthContext handle the redirect if session is valid
-            }, 2000);
+                const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    // Try to open the Native App
+                    window.location.href = 'com.registbar.app://';
+
+                    // Fallback to web login if app fails to open
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2500);
+                } else {
+                    window.location.href = '/';
+                }
+            }, 1000);
 
         } catch (error: any) {
             setMessage({ text: error.message || 'Error al actualizar contraseña', type: 'error' });
