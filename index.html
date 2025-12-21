@@ -18,6 +18,13 @@
   <!-- Tailwind CSS moved to build process -->
 
 
+  <script>
+    // CRITICAL: Capture Recovery Mode BEFORE React/Supabase loads
+    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      console.log("🚨 Recovery Hash Detected in Index.html! Saving to SessionStorage.");
+      sessionStorage.setItem('recovery_mode', 'true');
+    }
+  </script>
 </head>
 
 <body
