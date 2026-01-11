@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icons';
-
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
@@ -179,8 +179,20 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
     const takePhoto = async () => {
         if (isAnalyzing) return;
 
+        const isWeb = Capacitor.getPlatform() === 'web';
+        console.log("Tomando foto. Plataforma:", Capacitor.getPlatform());
+
+        if (isWeb) {
+            // WEB FALLBACK: Trigger hidden file input directly to avoid PWA Elements crash
+            console.log("Modo Web: Abriendo selector de archivos...");
+            if (fileInputRef.current) {
+                fileInputRef.current.click();
+            }
+            return;
+        }
+
         try {
-            console.log("Opening Camera...");
+            console.log("Opening Native Camera...");
             const image = await Camera.getPhoto({
                 quality: 80,
                 allowEditing: false,
