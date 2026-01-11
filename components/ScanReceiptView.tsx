@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icons';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
@@ -33,9 +32,25 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
     // 2. EFFECTS
     useEffect(() => {
         const checkSub = async () => {
-            if (!user) return;
-            const { data } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single();
-            setSubscriptionStatus(data?.subscription_status || 'free');
+            console.log("Checking subscription for user:", user?.id);
+            if (!user) {
+                console.log("No user, defaulting to free");
+                setSubscriptionStatus('free');
+                return;
+            }
+            try {
+                const { data, error } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single();
+                if (error) {
+                    console.error("Error fetching subscription:", error);
+                    setSubscriptionStatus('free');
+                } else {
+                    console.log("Subscription status:", data?.subscription_status);
+                    setSubscriptionStatus(data?.subscription_status || 'free');
+                }
+            } catch (e) {
+                console.error("Exception checking subscription:", e);
+                setSubscriptionStatus('free');
+            }
         };
         checkSub();
     }, [user]);
@@ -94,18 +109,29 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                     resolve(dataURItoBlob(dataURI));
                 }
             };
+            img.onerror = (err) => {
+                console.error("Image load error:", err);
+                resolve(dataURItoBlob(dataURI));
+            };
         });
     };
 
     const dataURItoBlob = (dataURI: string) => {
-        const byteString = atob(dataURI.split(',')[1]);
-        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
+        try {
+            const split = dataURI.split(',');
+            if (split.length < 2) return new Blob([]);
+            const byteString = atob(split[1]);
+            const mimeString = split[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        } catch (e) {
+            console.error("Blob conversion error:", e);
+            return new Blob([]);
         }
-        return new Blob([ab], { type: mimeString });
     };
 
     const analyzeReceipt = async (base64Image: string) => {
@@ -154,6 +180,7 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
         if (isAnalyzing) return;
 
         try {
+            console.log("Opening Camera...");
             const image = await Camera.getPhoto({
                 quality: 80,
                 allowEditing: false,
@@ -162,6 +189,7 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                 width: 1280
             });
 
+            console.log("Photo taken");
             if (image.dataUrl) {
                 setCapturedImage(image.dataUrl);
             }
@@ -263,12 +291,9 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
         return <SubscriptionPaywall onClose={onClose} />;
     }
 
+    // Replaced motion.div with standard div to prevent crashes
     return (
-        <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
+        <div
             className="fixed inset-0 z-50 bg-black flex flex-col"
         >
             {/* Top Camera/Image Area */}
@@ -448,6 +473,6 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                     {!isSaving && <Icon name="check" size={24} />}
                 </button>
             </div>
-        </motion.div>
+        </div>
     );
 };
