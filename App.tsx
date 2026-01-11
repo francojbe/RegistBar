@@ -10,6 +10,7 @@ import { ProfileView } from './components/ProfileView';
 import { AdvisorView } from './components/AdvisorView';
 import { ReportsView } from './components/ReportsView';
 import { ScanReceiptView } from './components/ScanReceiptView';
+import { CameraScanView } from './components/CameraScanView'; // NEW IMPORT
 import { LoginView } from './components/LoginView';
 import { useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Home);
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
+  const [showCameraScan, setShowCameraScan] = useState(false); // NEW STATE
   const [showTip, setShowTip] = useState(false);
   const [showNewService, setShowNewService] = useState(false);
   const [showSupplyExpense, setShowSupplyExpense] = useState(false);
@@ -460,7 +462,6 @@ const App: React.FC = () => {
         </div>
 
         {/* Top App Bar - Only for Home */}
-        {/* Top App Bar - Only for Home */}
         {activeTab === Tab.Home && (
           <header className="relative z-20 flex items-center justify-between px-6 py-6 bg-transparent transition-colors">
             <div className="flex items-center gap-3">
@@ -546,13 +547,13 @@ const App: React.FC = () => {
             {/* FAB Menu Options */}
             <div className={`flex flex-col gap-3 transition-all duration-300 origin-bottom-right relative z-50 pointer-events-auto ${isFabOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-75 translate-y-10 invisible'}`}>
 
-              {/* Option 4: Registrar Servicio */}
+              {/* Option 5: Register Service */}
               <button
                 onClick={() => {
                   setShowNewService(true);
                   setIsFabOpen(false);
                 }}
-                className="group flex items-center justify-end gap-3"
+                className="group flex items-center justify-end gap-3 text-right"
               >
                 <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
                   Registrar Servicio
@@ -562,13 +563,13 @@ const App: React.FC = () => {
                 </div>
               </button>
 
-              {/* Option 3: Registrar Gasto Insumo */}
+              {/* Option 4: Register Supply Expense */}
               <button
                 onClick={() => {
                   setShowSupplyExpense(true);
                   setIsFabOpen(false);
                 }}
-                className="group flex items-center justify-end gap-3"
+                className="group flex items-center justify-end gap-3 text-right"
               >
                 <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
                   Registrar Gasto Insumo
@@ -578,29 +579,45 @@ const App: React.FC = () => {
                 </div>
               </button>
 
-              {/* Option 2: Cargar Comprobante */}
+              {/* Option 3: Scan (Legacy/File) */}
               <button
                 onClick={() => {
                   setShowScan(true);
                   setIsFabOpen(false);
                 }}
-                className="group flex items-center justify-end gap-3"
+                className="group flex items-center justify-end gap-3 text-right"
               >
                 <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
-                  Cargar Comprobante
+                  Subir Comprobante (Archivo)
                 </span>
                 <div className="flex items-center justify-center size-12 rounded-full bg-purple-500 text-white shadow-lg hover:scale-105 active:scale-95 transition-all">
-                  <Icon name="receipt_long" size={20} />
+                  <Icon name="upload_file" size={20} />
                 </div>
               </button>
 
-              {/* Option 1: Propina Rápida */}
+              {/* Option 2: Camera Scan (New) */}
+              <button
+                onClick={() => {
+                  setShowCameraScan(true);
+                  setIsFabOpen(false);
+                }}
+                className="group flex items-center justify-end gap-3 text-right"
+              >
+                <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
+                  Escanear con Cámara
+                </span>
+                <div className="flex items-center justify-center size-12 rounded-full bg-emerald-500 text-white shadow-lg hover:scale-105 active:scale-95 transition-all">
+                  <Icon name="photo_camera" size={20} />
+                </div>
+              </button>
+
+              {/* Option 1: Quick Tip */}
               <button
                 onClick={() => {
                   setShowTip(true);
                   setIsFabOpen(false);
                 }}
-                className="group flex items-center justify-end gap-3"
+                className="group flex items-center justify-end gap-3 text-right"
               >
                 <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
                   Propina Rápida
@@ -632,6 +649,7 @@ const App: React.FC = () => {
         {/* Modals & Overlays */}
         <AnimatePresence>
           {showScan && <ScanReceiptView onClose={() => setShowScan(false)} />}
+          {showCameraScan && <CameraScanView onClose={() => setShowCameraScan(false)} />}
           {showTip && <TipModal onClose={() => setShowTip(false)} />}
           {showNewService && <NewServiceModal onClose={() => setShowNewService(false)} />}
           {showSupplyExpense && <SupplyExpenseModal onClose={() => setShowSupplyExpense(false)} />}
