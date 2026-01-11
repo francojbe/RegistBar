@@ -214,13 +214,25 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
             const categoryObj = currentCategories.find(c => c.label === selectedCategory);
             const finalCategory = categoryObj ? categoryObj.value : 'other';
 
+            // MANUAL DATE FIX: Create date in user's local timezone to prevent UTC shift
+            const getLocalDateISO = () => {
+                if (!date) return new Date().toISOString();
+
+                const now = new Date(); // Current local time
+                const [y, m, d] = date.split('-').map(Number);
+                // Create a new date using the user's selected YMD and their current HMS
+                // This 'localDate' is fully grounded in the device's timezone
+                const localDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+                return localDate.toISOString();
+            };
+
             const { error } = await supabase.from('transactions').insert({
                 user_id: user.id,
                 title: merchant || (transactionType === 'expense' ? 'Gasto Escaneado' : 'Ingreso Escaneado'),
                 amount: finalAmount,
                 type: transactionType,
                 category: finalCategory,
-                date: date ? new Date(date).toISOString() : new Date().toISOString(),
+                date: getLocalDateISO(),
                 receipt_url: receiptUrl
             });
 
