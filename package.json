@@ -13,6 +13,7 @@
   "dependencies": {
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
+    "@capacitor/camera": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/filesystem": "^8.0.0",
@@ -20,6 +21,7 @@
     "@capacitor/push-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
+    "@ionic/pwa-elements": "^3.3.0",
     "@supabase/supabase-js": "^2.88.0",
     "capacitor-native-biometric": "^4.2.2",
     "framer-motion": "^12.23.26",

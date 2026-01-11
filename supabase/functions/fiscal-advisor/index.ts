@@ -1,44 +1,52 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const GEMINI_API_KEY = "AIzaSyC2AQGyR2bFgWimXD6OPtUMnW-fn7toJ0k";
-const GEMINI_MODEL = "gemini-1.5-flash-latest";
-
 export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const tools = [
+// Configuration for multiple providers
+// Groq is prioritized after Gemini Preview. Cerebras is experimental fallback.
+const MODEL_CONFIG = [
+    { provider: 'gemini', model: 'gemini-3-flash-preview' },
+    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+    { provider: 'cerebras', model: 'llama3.1-8b' }
+];
+
+const TOOLS_DEF = [
     {
-        function_declarations: [
-            {
-                name: "get_financial_summary",
-                description: "CONSULTA OBLIGATORIA para obtener totales de ingresos y gastos. Úsala siempre que el usuario pregunte por dinero, meses pasados o totales.",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        period: { type: "string", enum: ["this_month", "last_month", "this_year", "total", "custom"] },
-                        month: { type: "integer" },
-                        year: { type: "integer" }
-                    },
-                    required: ["period"]
-                }
+        name: "get_financial_summary",
+        description: "Obtiene balance financiero, TOTALES DE GASTOS, desglose de servicios y detalle de en qué se gastó.",
+        parameters: {
+            type: "object",
+            properties: {
+                period: { type: "string", enum: ["this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
+                month: { type: "integer", description: "Mes del 1 al 12" },
+                year: { type: "integer", description: "Año completo (ej: 2025)" },
+                week_number: { type: "integer", description: "Número de semana (1 a 5) si es specific_week" }
             },
-            {
-                name: "search_transactions",
-                description: "Busca detalles de transacciones específicas (nombres, fechas, montos individuales).",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        query: { type: "string" },
-                        startDate: { type: "string" },
-                        endDate: { type: "string" }
-                    }
-                }
-            }
-        ]
+            required: ["period"]
+        }
+    },
+    {
+        name: "search_transactions",
+        description: "Busca transacciones específicas por texto.",
+        parameters: {
+            type: "object",
+            properties: { query: { type: "string" } },
+            required: ["query"]
+        }
     }
 ];
+
+// Helper to adapt tools for OpenAI format (Groq/Cerebras)
+const getOpenAITools = () => {
+    return TOOLS_DEF.map(t => ({
+        type: "function",
+        function: t
+    }));
+};
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -47,90 +55,307 @@ Deno.serve(async (req) => {
         const { query, history } = await req.json();
         const authHeader = req.headers.get('Authorization');
 
+        // Client for User interactions (RLS applied)
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            { global: { headers: { Authorization: authHeader ?? '' } } }
+            { global: { headers: { Authorization: authHeader ?? '' } }
+        )
+
+        // Client for Admin tasks (Secrets fetching) - No Auth Header override
+        const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
         const { data: { user } } = await supabaseClient.auth.getUser()
-        if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+        if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+        // --- Tool Execution Logic ---
         const executeTool = async (name: string, args: any) => {
             console.log(`[EXEC] ${name}`, args);
-            let q = supabaseClient.from('transactions').select('amount, type, title, date').eq('user_id', user.id);
-
-            const now = new Date("2026-01-10T23:00:00Z"); // Fix point in time for the AI
+            // Added 'category' to select
+            let q = supabaseClient.from('transactions').select('amount, type, title, category, date').eq('user_id', user.id);
 
             if (name === "get_financial_summary") {
                 if (args.period === "last_month" || (args.month === 12 && args.year === 2025)) {
-                    q = q.gte('date', '2025-12-01T00:00:00Z').lte('date', '2025-12-31T23:59:59Z');
+                    q = q.gte('date', '2025-12-01T00:00:00-03:00').lte('date', '2025-12-31T23:59:59-03:00');
                 } else if (args.period === "this_month") {
-                    q = q.gte('date', '2026-01-01T00:00:00Z');
-                } else if (args.period === "custom" && args.month && args.year) {
-                    const start = new Date(args.year, args.month - 1, 1).toISOString();
-                    const end = new Date(args.year, args.month, 0, 23, 59, 59).toISOString();
+                    q = q.gte('date', '2026-01-01T00:00:00-03:00');
+                } else if (args.period === "this_week") {
+                    // Current date: 2026-01-11 (Sunday). Week Start (Monday): 2026-01-05
+                    q = q.gte('date', '2026-01-05T00:00:00-03:00').lte('date', '2026-01-11T23:59:59-03:00');
+                } else if (args.period === "specific_week" && args.week_number) {
+                    // Logic: Week 1 (1-7), Week 2 (8-14), Week 3 (15-21), Week 4 (22-28), Week 5 (29-End)
+                    const y = args.year || 2026;
+                    const m = args.month || 1;
+                    const startDay = ((args.week_number - 1) * 7) + 1;
+                    const endDay = args.week_number === 5 ? new Date(y, m, 0).getDate() : startDay + 6;
+
+                    const start = `${y}-${String(m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}T00:00:00-03:00`;
+                    const end = `${y}-${String(m).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T23:59:59-03:00`;
+                    q = q.gte('date', start).lte('date', end);
+
+                } else if (args.period === "custom") {
+                    if (args.year && args.month) {
+                        const m = Math.max(1, Math.min(12, args.month));
+                        const lastDay = new Date(args.year, m, 0).getDate();
+                        const start = `${args.year}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`;
+                        const end = `${args.year}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`;
+                        q = q.gte('date', start).lte('date', end);
+                    } else if (args.year) {
+                        const start = `${args.year}-01-01T00:00:00-03:00`;
+                        const end = `${args.year}-12-31T23:59:59-03:00`;
+                        q = q.gte('date', start).lte('date', end);
+                    }
+                } else if (args.period === "this_year") {
+                    const start = `2026-01-01T00:00:00-03:00`;
+                    const end = `2026-12-31T23:59:59-03:00`; // Added end date for this_year
                     q = q.gte('date', start).lte('date', end);
                 }
 
                 const { data } = await q;
-                const inc = data?.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0) || 0;
-                const exp = data?.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || 0), 0) || 0;
-                return { income: inc, expense: exp, balance: inc - exp, count: data?.length || 0, is_real_data: true };
-            }
 
+                // Fetch User Profile & Goals
+                const { data: profile } = await supabaseClient.from('profiles').select('first_name').eq('id', user.id).single();
+                const { data: goals } = await supabaseClient.from('goals').select('title, target_amount, current_amount, deadline').eq('user_id', user.id); // Simple fetch all for now
+
+                const user_name = profile?.first_name || "Usuario";
+                const goals_text = goals?.map(g => `- ${g.title}: $${g.current_amount || 0} / $${g.target_amount} (Vence: ${g.deadline})`).join("\n") || "Sin metas activas.";
+
+                // Basic Totals
+                const income_txs = data?.filter(t => t.type === 'income') || [];
+                const inc = income_txs.reduce((s, t) => s + (t.amount || 0), 0) || 0;
+                const exp = data?.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || 0), 0) || 0;
+                const avg_ticket = income_txs.length > 0 ? Math.round(inc / income_txs.length) : 0;
+
+                const day_map = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                const day_counts: Record<string, number> = {};
+                income_txs.forEach(t => {
+                    const d = new Date(t.date);
+                    day_counts[day_map[d.getDay()]] = (day_counts[day_map[d.getDay()]] || 0) + (t.amount || 0);
+                });
+
+                const best_day_entry = Object.entries(day_counts).sort(([, a], [, b]) => b - a)[0];
+                const best_day_text = best_day_entry ? `${best_day_entry[0]} ($${best_day_entry[1]})` : "No hay datos suficientes";
+
+                // 3. Breakdown by category (Expenses)
+                const breakdown: Record<string, number> = {};
+                data?.filter(t => t.type === 'expense').forEach(t => { const key = t.title || t.category || "Varios"; breakdown[key] = (breakdown[key] || 0) + Math.abs(t.amount || 0); });
+                const top_expenses_text = Object.entries(breakdown).sort(([, a], [, b]) => b - a).slice(0, 15).map(([k, v]) => `- ${k}: $${v}`).join("\n");
+
+                // 4. Full Service Metrics (Merged Income & Frequency)
+                const service_metrics: Record<string, { count: number, income: number }> = {};
+
+                income_txs.forEach(t => {
+                    const key = t.title || "Servicio General";
+                    if (!key.toLowerCase().includes('propina')) {
+                        if (!service_metrics[key]) service_metrics[key] = { count: 0, income: 0 };
+                        service_metrics[key].count += 1;
+                        service_metrics[key].income += (t.amount || 0);
+                    }
+                });
+
+                // Convert to array and sort by Income descending
+                const all_services_metrics = Object.entries(service_metrics)
+                    .map(([name, m]) => ({ name, count: m.count, income: m.income, avg: Math.round(m.income / m.count) }))
+                    .sort((a, b) => b.income - a.income);
+
+                // Legacy text fields (kept for backward compat or quick summary, but full list is preferred)
+                const top_services_text = all_services_metrics.slice(0, 10).map(s => `- ${s.name}: ${s.count} veces`).join("\n");
+                const top_services_income_text = all_services_metrics.slice(0, 10).map(s => `- ${s.name}: $${s.income}`).join("\n");
+
+                const lowest_income = all_services_metrics.length > 0 ? all_services_metrics[all_services_metrics.length - 1] : null;
+                const low_income_text = lowest_income ? `${lowest_income.name} ($${lowest_income.income})` : "N/A";
+
+                // Calculate Tips (Propinas)
+                const total_tips = data?.reduce((acc, t) => {
+                    const isTip = (t.title && t.title.toLowerCase().includes('propina')) || (t.category && t.category.toLowerCase().includes('propina'));
+                    return acc + (isTip ? (t.amount || 0) : 0);
+                }, 0) || 0;
+
+                return {
+                    user_name, // Added
+                    goals_text, // Added
+                    income: inc, expense: exp, balance: inc - exp, avg_ticket, best_day: best_day_text, count: data?.length || 0,
+                    top_expenses_text,
+                    total_tips: total_tips, // NEW: Exact DB calculation
+                    all_services_metrics: JSON.stringify(all_services_metrics), // AI can read this full list
+                    lowest_income_service: low_income_text, // Precise backup
+                    is_real_data: true
+                };
+            }
             if (name === "search_transactions") {
-                if (args.query) q = q.ilike('title', `%${args.query}%`);
-                const { data } = await q.order('date', { ascending: false }).limit(20);
+                const { data } = await q.ilike('title', `%${args.query}%`).order('date', { ascending: false }).limit(20);
                 return { transactions: data || [], is_real_data: true };
             }
             return { error: "Unknown" };
-        }
-
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
-        const contents = [];
-        if (history && Array.isArray(history)) {
-            history.forEach((msg: any) => {
-                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.text }] });
-            });
-        }
-        contents.push({ role: 'user', parts: [{ text: query }] });
-
-        const payload = {
-            system_instruction: {
-                parts: [{
-                    text: `ERES ASESOR REGISTBAR. HOY ES 10 DE ENERO DE 2026.
-        1. TIENES ACCESO A LA BASE DE DATOS REAL DEL USUARIO.
-        2. SI PREGUNTAN POR DINERO, GASTOS O INGRESOS, USA 'get_financial_summary' O 'search_transactions'.
-        3. ESTÁ PROHIBIDO DECIR "NO TENGO DATOS" SIN USAR UNA HERRAMIENTA.
-        4. LOS DATOS SON REALES, NO SIMULADOS. SE BREVE.` }]
-            },
-            contents,
-            tools
         };
 
-        const r1 = await fetch(geminiUrl, { method: 'POST', body: JSON.stringify(payload) });
-        const d1 = await r1.json();
-        const p1 = d1.candidates?.[0]?.content?.parts?.[0];
+        // --- Provider Calling Logic ---
 
-        if (p1?.functionCall) {
-            const toolRes = await executeTool(p1.functionCall.name, p1.functionCall.args);
+        const systemPrompt = `ERES ASESOR REGISTBAR. HOY ES 11 DE ENERO DE 2026.
+        1. RESPONDE SIEMPRE EN ESPAÑOL CHILENO 🇨🇱.
+        2. NATURALIDAD: NO Saludes siempre con "Hola [Nombre]". Sé fluido. Si la conversación sigue, ve directo al grano. Usa el nombre (user_name) solo ocasionalmente para dar calidez.
+        3. USA 'all_services_metrics' PARA RANKINGS, Y 'top_expenses_text' PARA DETALLE DE GASTOS.
+        4. USA 'total_tips' SI PREGUNTAN POR PROPINAS (Es el monto exacto).
+        5. REGLA DE ORO: RESPONDE SOLO LO QUE SE PREGUNTA. NO DIGAS "NO SÉ" SI TIENES EL DATO EN LA LISTA.
+           - Si preguntan "En qué gasté", LEE 'top_expenses_text'.
+           - Si preguntan "Metas", habla SOLO de metas.
+        6. ANTI-ALUCINACIÓN: Si preguntan "¿Solo eso?" o "¿Algo más?", MIRA LA LISTA QUE TE DI. Si no hay más ítems, DI: "No tengo más registros". PROHIBIDO INVENTAR DATOS.
+        7. SÉ EXTREMADAMENTE BREVE Y CONCISO.`;
 
-            contents.push(d1.candidates[0].content);
-            contents.push({
-                role: 'function',
-                parts: [{ functionResponse: { name: p1.functionCall.name, response: { content: toolRes } } }]
-            });
+        let lastError = null;
+        let successfulModel = "";
 
-            const r2 = await fetch(geminiUrl, { method: 'POST', body: JSON.stringify({ ...payload, contents }) });
-            const d2 = await r2.json();
-            return new Response(JSON.stringify({ answer: d2.candidates?.[0]?.content?.parts?.[0]?.text }), { headers: corsHeaders });
+        for (const config of MODEL_CONFIG) {
+            try {
+                console.log(`Trying provider: ${config.provider} (${config.model})`);
+
+                let result = null;
+                let toolCall = null;
+                const geminiKey = "AIzaSyAxxE-YSEoZ0gX9Rs3rGP_EnGQRFYl2TCA";
+
+                // Fetch keys from DB using ADMIN client
+                let groqKey = "";
+                let cerebrasKey = "";
+
+                if (config.provider === 'groq' || config.provider === 'cerebras') {
+                    const { data: secrets } = await supabaseAdmin.from('app_config').select('key, value').in('key', ['GROQ_API_KEY', 'CEREBRAS_API_KEY']);
+                    if (secrets) {
+                        groqKey = secrets.find(s => s.key === 'GROQ_API_KEY')?.value || "";
+                        cerebrasKey = secrets.find(s => s.key === 'CEREBRAS_API_KEY')?.value || "";
+                    }
+                }
+
+                if (config.provider === 'gemini') {
+                    // Gemini Payload
+                    const messages = [];
+                    if (history?.length) history.forEach((m: any) => messages.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] }));
+                    else messages.push({ role: 'user', parts: [{ text: query }] });
+
+                    const payload = { system_instruction: { parts: [{ text: systemPrompt }] }, contents: messages, tools: [{ function_declarations: TOOLS_DEF }] };
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${geminiKey}`;
+                    const resp = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+                    if (!resp.ok) throw new Error(`Gemini ${resp.status}`);
+                    const data = await resp.json();
+                    const part = data.candidates?.[0]?.content?.parts?.[0];
+
+                    if (part?.functionCall) {
+                        toolCall = { name: part.functionCall.name, args: part.functionCall.args };
+                    } else {
+                        result = part?.text;
+                    }
+
+                } else if (config.provider === 'groq' || config.provider === 'cerebras') {
+                    const apiKey = config.provider === 'groq' ? groqKey : cerebrasKey;
+                    if (!apiKey) { console.log(`Skipping ${config.provider} (no key in DB)`); continue; }
+
+                    const url = config.provider === 'groq' ? "https://api.groq.com/openai/v1/chat/completions" : "https://api.cerebras.ai/v1/chat/completions";
+
+                    const messages = [{ role: "system", content: systemPrompt }];
+                    if (history?.length) history.forEach((m: any) => messages.push({ role: m.role, content: m.text }));
+                    else messages.push({ role: 'user', content: query });
+
+                    const payload = { model: config.model, messages: messages, tools: getOpenAITools(), tool_choice: "auto" };
+                    const resp = await fetch(url, { method: 'POST', headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+
+                    if (!resp.ok) {
+                        const errTxt = await resp.text();
+                        throw new Error(`${config.provider} ${resp.status}: ${errTxt}`);
+                    }
+
+                    const data = await resp.json();
+                    const msg = data.choices[0].message;
+                    if (msg.tool_calls) {
+                        toolCall = { name: msg.tool_calls[0].function.name, args: JSON.parse(msg.tool_calls[0].function.arguments) };
+                    } else {
+                        result = msg.content;
+
+                        // EMERGENCY PARSER for models (Cerebras/Llama) that output JSON as text
+                        if (result && result.trim().startsWith('{') && result.includes('"name"')) {
+                            try {
+                                const parsed = JSON.parse(result);
+                                if (parsed.name && parsed.arguments) {
+                                    console.log("[EMERGENCY PARSE] Recovered tool call from text");
+                                    toolCall = { name: parsed.name, args: typeof parsed.arguments === 'string' ? JSON.parse(parsed.arguments) : parsed.arguments };
+                                    result = null; // Clear text result since it was actually a tool call
+                                }
+                            } catch (e) {
+                                console.warn("Failed to emergency parse JSON:", e);
+                            }
+                        }
+                    }
+                }
+
+                // Handle Tool Call if present
+                if (toolCall) {
+                    const toolRes = await executeTool(toolCall.name, toolCall.args);
+
+                    // Second Turn 
+                    console.log("[TOOL RES]", toolRes);
+                    const finalPrompt = `CONTEXTO: El usuario preguntó "${query}". 
+                    HERRAMIENTA EJECUTADA: ${toolCall.name}. 
+                    RESULTADO: ${JSON.stringify(toolRes)}. 
+                    
+                    INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE a la pregunta del usuario usando estos datos.
+                    - NO des información extra que no se pidió.
+                    - NO hagas resúmenes generales si preguntaron un dato puntual.
+                    - Sé directo.`;
+
+                    if (config.provider === 'gemini') {
+                        const url2 = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${geminiKey}`;
+                        const resp2 = await fetch(url2, { method: 'POST', body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ role: 'user', parts: [{ text: finalPrompt }] }] }) });
+                        if (resp2.ok) {
+                            const data2 = await resp2.json();
+                            result = data2.candidates?.[0]?.content?.parts?.[0]?.text;
+                        }
+                    } else {
+                        const apiKey = config.provider === 'groq' ? groqKey : cerebrasKey;
+                        const url = config.provider === 'groq' ? "https://api.groq.com/openai/v1/chat/completions" : "https://api.cerebras.ai/v1/chat/completions";
+                        const resp2 = await fetch(url, { method: 'POST', headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: config.model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: finalPrompt }] }) });
+                        if (resp2.ok) {
+                            const data2 = await resp2.json();
+                            result = data2.choices[0].message.content;
+                        }
+                    }
+
+                    // Fallback summary if AI fails to text
+                    if (!result && toolRes.is_real_data && toolRes.income) {
+                        result = `📊 *Resumen (Fallback):*\nIngresos: $${toolRes.income}\nGastos: $${toolRes.expense}\nBalance: $${toolRes.balance}\nMenos Rentable: ${toolRes.lowest_income_service}`;
+                    }
+                }
+
+                if (result) {
+                    successfulModel = `${config.provider}/${config.model}`;
+                    console.log(`[SUCCESS] via ${successfulModel}`);
+
+                    // LOGGING to DB
+                    try {
+                        await supabaseAdmin.from('chat_logs').insert({
+                            user_id: user.id,
+                            query: query,
+                            response: result,
+                            provider: config.provider,
+                            model: config.model,
+                            context_data: toolCall ? toolRes : null
+                        });
+                    } catch (logErr) {
+                        console.error("Logging failed:", logErr);
+                    }
+
+                    return new Response(JSON.stringify({ answer: result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                }
+
+            } catch (e) {
+                console.warn(`Provider ${config.provider} failed:`, e);
+                lastError = e.message;
+            }
         }
 
-        return new Response(JSON.stringify({ answer: p1?.text || "Hubo un problema. Intenta preguntar de nuevo." }), { headers: corsHeaders });
+        return new Response(JSON.stringify({ answer: `⚠️ Error en todos los modelos. Último: ${lastError}` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+    } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 })
