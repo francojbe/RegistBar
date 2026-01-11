@@ -29,3 +29,8 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Google Services
+google-services.json
+android/app/google-services.json
+GoogleService-Info.plist
