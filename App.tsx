@@ -7,6 +7,7 @@ import { Transaction, KPI, Tab } from './types';
 
 import { IncomeView } from './components/IncomeView';
 import { ProfileView } from './components/ProfileView';
+import { AdvisorView } from './components/AdvisorView';
 import { ReportsView } from './components/ReportsView';
 import { ScanReceiptView } from './components/ScanReceiptView';
 import { LoginView } from './components/LoginView';
@@ -24,6 +25,8 @@ import { AdminView } from './components/AdminView';
 import { CompleteProfileView } from './components/CompleteProfileView';
 import { ResetPasswordView } from './components/ResetPasswordView';
 import { App as CapacitorApp } from '@capacitor/app';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 
 const App: React.FC = () => {
   const { user, loading, signOut } = useAuth();
@@ -39,6 +42,80 @@ const App: React.FC = () => {
     return sessionStorage.getItem('recovery_mode') === 'true';
   });
   const [isCheckingRecovery, setIsCheckingRecovery] = useState(true); // New Blocker State
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+
+
+
+  // Push Notifications Setup
+  React.useEffect(() => {
+    if (Capacitor.getPlatform() === 'web') return;
+
+    const registerPush = async () => {
+      let permStatus = await PushNotifications.checkPermissions();
+
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+
+      if (permStatus.receive !== 'granted') {
+        console.log('User denied permissions!');
+        return;
+      }
+
+      await PushNotifications.register();
+    };
+
+    registerPush();
+
+    // Listeners
+    PushNotifications.addListener('registration', token => {
+      console.log('My token: ' + token.value);
+      setFcmToken(token.value);
+    });
+
+    PushNotifications.addListener('registrationError', (error: any) => {
+      console.log('Error on registration: ' + JSON.stringify(error));
+    });
+
+    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
+      console.log('Push received: ' + JSON.stringify(notification));
+      const { title, body } = notification;
+      alert(`🔔 Notificación recibida:\n${title}\n${body}`);
+    });
+
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
+      console.log('Push action performed: ' + JSON.stringify(notification));
+      setShowNotifications(true);
+    });
+
+    return () => {
+      PushNotifications.removeAllListeners();
+    };
+  }, []);
+
+  // Sync Token with Supabase (Multi-device support)
+  React.useEffect(() => {
+    const saveToken = async () => {
+      if (user && fcmToken) {
+        // Upsert into user_devices: if token exists, update timestamp; if not, insert.
+        const { error } = await supabase
+          .from('user_devices')
+          .upsert({
+            user_id: user.id,
+            fcm_token: fcmToken,
+            device_type: Capacitor.getPlatform(), // 'android', 'ios', or 'web'
+            last_used_at: new Date().toISOString()
+          }, { onConflict: 'fcm_token' });
+
+        if (error) {
+          console.error('Error saving device token:', error);
+        } else {
+          console.log('Device token synced successfully!');
+        }
+      }
+    };
+    saveToken();
+  }, [user, fcmToken]);
 
   // Handle Password Recovery & Deep Links
   React.useEffect(() => {
@@ -456,6 +533,7 @@ const App: React.FC = () => {
             )}
 
             {activeTab === Tab.Income && <IncomeView onGoToReports={() => setActiveTab(Tab.Reports)} />}
+            {activeTab === Tab.Advisor && <AdvisorView />}
             {activeTab === Tab.Profile && <ProfileView />}
 
             {activeTab === Tab.Reports && <ReportsView />}

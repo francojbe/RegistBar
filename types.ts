@@ -26,5 +26,18 @@ export enum Tab {
   Home = 'Inicio',
   Income = 'Movimientos',
   Reports = 'Reportes',
+  Advisor = 'Asesor IA',
   Profile = 'Perfil',
+}
+
+export interface Profile {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  subscription_status?: 'free' | 'pro';
+  commission_rate?: number;
+  expense_model?: 'commission' | 'rent';
+  rent_amount?: number;
+  rent_period?: 'weekly' | 'monthly';
 }

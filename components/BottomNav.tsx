@@ -11,6 +11,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   const navItems = [
     { tab: Tab.Home, icon: 'home' },
     { tab: Tab.Income, icon: 'receipt_long' },
+    { tab: Tab.Advisor, icon: 'auto_awesome' },
     { tab: Tab.Reports, icon: 'bar_chart' },
     { tab: Tab.Profile, icon: 'person' },
   ];

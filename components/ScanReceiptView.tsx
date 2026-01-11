@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { SubscriptionPaywall } from './SubscriptionPaywall';
 
 interface ScanReceiptViewProps {
     onClose: () => void;
@@ -13,6 +14,26 @@ interface ScanReceiptViewProps {
 export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const [subscriptionStatus, setSubscriptionStatus] = useState<'free' | 'pro' | null>(null);
+
+    useEffect(() => {
+        const checkSub = async () => {
+            if (!user) return;
+            // Check if user has metadata first (faster)
+            // But we agreed to use DB.
+            const { data } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single();
+            setSubscriptionStatus(data?.subscription_status || 'free');
+        };
+        checkSub();
+    }, [user]);
+
+    if (subscriptionStatus === null) {
+        return <div className="fixed inset-0 bg-black z-50 flex items-center justify-center"><Icon name="refresh" className="animate-spin text-white" /></div>;
+    }
+
+    if (subscriptionStatus !== 'pro') {
+        return <SubscriptionPaywall onClose={onClose} />;
+    }
 
     // Data Strings
     const [amount, setAmount] = useState<number | string>('');

@@ -51,6 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session?.user) {
                 const { data: { user: freshUser }, error } = await supabase.auth.getUser();
                 if (freshUser && !error) {
+                    // Check Subscription in DB
+                    const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', freshUser.id).single();
+                    if (profile) {
+                        // Merge subscription_status into user metadata for easier access app-wide without refetching constantly
+                        freshUser.user_metadata = { ...freshUser.user_metadata, subscription_status: profile.subscription_status || 'free' };
+                    }
                     setUser(freshUser);
                 }
             }
