@@ -10,7 +10,6 @@ import { ProfileView } from './components/ProfileView';
 import { AdvisorView } from './components/AdvisorView';
 import { ReportsView } from './components/ReportsView';
 import { ScanReceiptView } from './components/ScanReceiptView';
-import { CameraScanView } from './components/CameraScanView'; // NEW IMPORT
 import { LoginView } from './components/LoginView';
 import { useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
@@ -34,7 +33,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Home);
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
-  const [showCameraScan, setShowCameraScan] = useState(false); // NEW STATE
   const [showTip, setShowTip] = useState(false);
   const [showNewService, setShowNewService] = useState(false);
   const [showSupplyExpense, setShowSupplyExpense] = useState(false);
@@ -579,26 +577,10 @@ const App: React.FC = () => {
                 </div>
               </button>
 
-              {/* Option 3: Scan (Legacy/File) */}
+              {/* Option 2: Scan with Camera (Consolidated Option) */}
               <button
                 onClick={() => {
                   setShowScan(true);
-                  setIsFabOpen(false);
-                }}
-                className="group flex items-center justify-end gap-3 text-right"
-              >
-                <span className="bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-bold text-slate-700">
-                  Subir Comprobante (Archivo)
-                </span>
-                <div className="flex items-center justify-center size-12 rounded-full bg-purple-500 text-white shadow-lg hover:scale-105 active:scale-95 transition-all">
-                  <Icon name="upload_file" size={20} />
-                </div>
-              </button>
-
-              {/* Option 2: Camera Scan (New) */}
-              <button
-                onClick={() => {
-                  setShowCameraScan(true);
                   setIsFabOpen(false);
                 }}
                 className="group flex items-center justify-end gap-3 text-right"
@@ -649,7 +631,6 @@ const App: React.FC = () => {
         {/* Modals & Overlays */}
         <AnimatePresence>
           {showScan && <ScanReceiptView onClose={() => setShowScan(false)} />}
-          {showCameraScan && <CameraScanView onClose={() => setShowCameraScan(false)} />}
           {showTip && <TipModal onClose={() => setShowTip(false)} />}
           {showNewService && <NewServiceModal onClose={() => setShowNewService(false)} />}
           {showSupplyExpense && <SupplyExpenseModal onClose={() => setShowSupplyExpense(false)} />}
