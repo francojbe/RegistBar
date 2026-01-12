@@ -391,6 +391,20 @@ Deno.serve(async (req) => {
             }
         }
 
+        if (lastError) {
+            // Log the failure to DB so we can debug
+            try {
+                await supabaseAdmin.from('chat_logs').insert({
+                    user_id: user.id,
+                    query: query,
+                    response: `⚠️ SYSTEM ERROR: ${lastError}`,
+                    provider: "system",
+                    model: "error-catcher",
+                    context_data: { error: lastError }
+                });
+            } catch (err) { console.error("Final log failed", err) }
+        }
+
         return new Response(JSON.stringify({ answer: `⚠️ Error en todos los modelos. Último: ${lastError}` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     } catch (err: any) {
