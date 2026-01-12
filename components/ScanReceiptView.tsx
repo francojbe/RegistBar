@@ -162,7 +162,16 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                 if (data.monto_total) setAmount(Number(data.monto_total));
                 if (data.nombre_comercio) setMerchant(data.nombre_comercio);
                 if (data.rut_emisor) setRut(data.rut_emisor);
-                if (data.fecha_gasto) setDate(data.fecha_gasto);
+
+                // DATA OVERWRITE PROTECTION:
+                if (data.fecha_gasto) {
+                    setDate(currentDate => {
+                        // If user already typed something, don't overwrite it with AI guess
+                        if (currentDate) return currentDate;
+                        return data.fecha_gasto.split('T')[0];
+                    });
+                }
+
                 showToast('¡Datos extraídos con éxito!', 'success');
             }
         } catch (error) {
