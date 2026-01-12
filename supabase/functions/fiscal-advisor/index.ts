@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
 
                     // LOGGING to DB
                     try {
-                        await supabaseAdmin.from('chat_logs').insert({
+                        const { error } = await supabaseAdmin.from('chat_logs').insert({
                             user_id: user.id,
                             query: query,
                             response: result,
@@ -378,8 +378,16 @@ Deno.serve(async (req) => {
                             model: config.model,
                             context_data: toolCall ? toolRes : null
                         });
-                    } catch (logErr) {
-                        console.error("Logging failed:", logErr);
+
+                        // DEBUG: Capture Insert Failure
+                        if (error) {
+                            console.error("Supabase Insert Error:", error);
+                            const keyLen = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || "").length;
+                            result += `\n\n[DEBUG: Log DB Error: ${JSON.stringify(error)}. KeyLen: ${keyLen}]`;
+                        }
+                    } catch (logErr: any) {
+                        console.error("Logging Exception:", logErr);
+                        result += `\n\n[DEBUG: Log Exception: ${logErr.message}]`;
                     }
 
                     return new Response(JSON.stringify({ answer: result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
