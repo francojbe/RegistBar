@@ -21,9 +21,13 @@ const TOOLS_DEF = [
         parameters: {
             type: "object",
             properties: {
-                period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
-                month: { type: "integer", description: "Mes del 1 al 12" },
-                year: { type: "integer", description: "Año completo (ej: 2025)" },
+                period: {
+                    type: "string",
+                    enum: ["today", "yesterday", "this_week", "this_month", "last_month", "this_year", "custom", "specific_week"],
+                    description: "Periodo de tiempo. Usa 'custom' para meses específicos del pasado (ej: Noviembre)."
+                },
+                month: { type: "integer", description: "Mes del 1 al 12 (Solo si period es 'custom' o 'specific_week')" },
+                year: { type: "integer", description: "Año completo ej: 2025 (Solo si period es 'custom')" },
                 week_number: { type: "integer", description: "Número de semana (1 a 5) si es specific_week" }
             },
             required: ["period"]
@@ -125,17 +129,15 @@ Deno.serve(async (req) => {
                     const end = `${y}-${String(m).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T23:59:59-03:00`;
                     q = q.gte('date', start).lte('date', end);
                 } else if (args.period === "custom") {
-                    if (args.year && args.month) {
-                        const m = Math.max(1, Math.min(12, args.month));
-                        const lastDay = new Date(args.year, m, 0).getDate();
-                        const start = `${args.year}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`;
-                        const end = `${args.year}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`;
-                        q = q.gte('date', start).lte('date', end);
-                    } else if (args.year) {
-                        const start = `${args.year}-01-01T00:00:00-03:00`;
-                        const end = `${args.year}-12-31T23:59:59-03:00`;
-                        q = q.gte('date', start).lte('date', end);
-                    }
+                    let y = args.year || new Date().getFullYear();
+                    let m = args.month;
+                    // Auto-fix for common errors
+                    if (!m) { m = new Date().getMonth() + 1; }
+
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const start = `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`;
+                    const end = `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`;
+                    q = q.gte('date', start).lte('date', end);
                 } else if (args.period === "this_year") {
                     const y = new Date().getFullYear();
                     const start = `${y}-01-01T00:00:00-03:00`;
@@ -204,15 +206,17 @@ Deno.serve(async (req) => {
                 }, 0) || 0;
 
                 return {
-                    user_name, // Added
-                    goals_text, // Added
+                    user_name,
+                    goals_text,
                     income: inc, expense: exp, balance: inc - exp, avg_ticket, best_day: best_day_text, count: data?.length || 0,
                     top_expenses_text,
-                    total_tips: total_tips, // NEW: Exact DB calculation
-                    all_services_metrics: JSON.stringify(all_services_metrics), // AI can read this full list
-                    lowest_income_service: low_income_text, // Precise backup
+                    total_tips: total_tips,
+                    all_services_metrics: JSON.stringify(all_services_metrics),
+                    lowest_income_service: low_income_text,
                     is_real_data: true,
-                    period: args.period // Echo back period for AI context
+                    period: args.period,
+                    target_month: args.month || null,
+                    target_year: args.year || null
                 };
             }
             if (name === "search_transactions") {
@@ -224,14 +228,13 @@ Deno.serve(async (req) => {
 
         // --- Provider Calling Logic ---
 
-        const systemPrompt = `ERES ASESOR REGISTBAR.
-        1. RESPONDE SIEMPRE EN ESPAÑOL CHILENO 🇨🇱.
-        2. NATURALIDAD: NO Saludes siempre con "Hola [Nombre]". Sé fluido. Si la conversación sigue, ve directo al grano. Usa el nombre (user_name) solo ocasionalmente para dar calidez.
-        3. USA 'all_services_metrics' PARA RANKINGS, Y 'top_expenses_text' PARA DETALLE DE GASTOS.  
-        4. USA 'total_tips' SI PREGUNTAN POR PROPINAS (Es el monto exacto).
-        5. REGLA DE ORO: LEE EL CAMPO 'period' del contexto. SI ES 'today', RESPONDE "Hoy llevas...". SI ES 'month', "Este mes llevas...". SÉ CLARO CON EL PERIODO.
-        6. ANTI-ALUCINACIÓN: Si preguntan "¿Solo eso?" o "¿Algo más?", MIRA LA LISTA QUE TE DI. Si no hay más ítems, DI: "No tengo más registros". PROHIBIDO INVENTAR DATOS.
-        7. SÉ EXTREMADAMENTE BREVE Y CONCISO.`;
+        const systemPrompt = `Eres el ASESOR REGISTBAR 🇨🇱.
+        FECHA ACTUAL: 11 de Enero de 2026.
+        1. REGLA DE MESES: Si preguntan por un mes específico (ej: Noviembre), usa la herramienta con period='custom', month=11, year=2025.
+        2. NATURALIDAD: Habla fluido con modismos chilenos sutiles.
+        3. FOCO EN DATOS: Usa los números exactos de la herramienta.
+        4. BREVEDAD: Ve directo al grano.
+        5. ANTI-ALUCINACIÓN: Si no hay datos, di simplemente que no tienes registros para ese periodo. No menciones nombres técnicos de variables.`;
 
         let lastError = null;
         let successfulModel = "";
@@ -242,6 +245,7 @@ Deno.serve(async (req) => {
 
                 let result = null;
                 let toolCall = null;
+                let toolRes = null;
                 const geminiKey = "AIzaSyAxxE-YSEoZ0gX9Rs3rGP_EnGQRFYl2TCA";
 
                 // Fetch keys from DB using ADMIN client
@@ -299,38 +303,17 @@ Deno.serve(async (req) => {
                         toolCall = { name: msg.tool_calls[0].function.name, args: JSON.parse(msg.tool_calls[0].function.arguments) };
                     } else {
                         result = msg.content;
-
-                        // EMERGENCY PARSER for models (Cerebras/Llama) that output JSON as text
-                        if (result && result.trim().startsWith('{') && result.includes('"name"')) {
-                            try {
-                                const parsed = JSON.parse(result);
-                                if (parsed.name && parsed.arguments) {
-                                    console.log("[EMERGENCY PARSE] Recovered tool call from text");
-                                    toolCall = { name: parsed.name, args: typeof parsed.arguments === 'string' ? JSON.parse(parsed.arguments) : parsed.arguments };
-                                    result = null; // Clear text result since it was actually a tool call
-                                }
-                            } catch (e) {
-                                console.warn("Failed to emergency parse JSON:", e);
-                            }
-                        }
                     }
                 }
 
                 // Handle Tool Call if present
                 if (toolCall) {
-                    const toolRes = await executeTool(toolCall.name, toolCall.args);
+                    toolRes = await executeTool(toolCall.name, toolCall.args);
 
                     // Second Turn 
-                    console.log("[TOOL RES]", toolRes);
                     const finalPrompt = `CONTEXTO: El usuario preguntó "${query}". 
-                    HERRAMIENTA EJECUTADA: ${toolCall.name}. 
-                    RESULTADO: ${JSON.stringify(toolRes)}. 
-                    
-                    INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE a la pregunta del usuario usando estos datos.
-                    - SI el periodo es 'today', enfatiza que son datos de HOY.
-                    - NO des información extra que no se pidió.
-                    - NO hagas resúmenes generales si preguntaron un dato puntual.
-                    - Sé directo.`;
+                    DATOS OBTENIDOS: ${JSON.stringify(toolRes)}. 
+                    INSTRUCCIÓN: Responde de forma natural basándote exclusivamente en estos datos. No menciones nombres técnicos de periodos.`;
 
                     if (config.provider === 'gemini') {
                         const url2 = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${geminiKey}`;
@@ -348,20 +331,13 @@ Deno.serve(async (req) => {
                             result = data2.choices[0].message.content;
                         }
                     }
-
-                    // Fallback summary if AI fails to text
-                    if (!result && toolRes.is_real_data && toolRes.income) {
-                        result = `📊 *Resumen (Fallback):*\nIngresos: $${toolRes.income}\nGastos: $${toolRes.expense}\nBalance: $${toolRes.balance}\nMenos Rentable: ${toolRes.lowest_income_service}`;
-                    }
                 }
 
                 if (result) {
                     successfulModel = `${config.provider}/${config.model}`;
-                    console.log(`[SUCCESS] via ${successfulModel}`);
-
-                    // LOGGING to DB
+                    // LOGGING to DB (SILENT)
                     try {
-                        const { error } = await supabaseAdmin.from('chat_logs').insert({
+                        await supabaseAdmin.from('chat_logs').insert({
                             user_id: user.id,
                             query: query,
                             response: result,
@@ -369,9 +345,7 @@ Deno.serve(async (req) => {
                             model: config.model,
                             context_data: toolCall ? toolRes : null
                         });
-                    } catch (logErr) {
-                        console.error("Logging failed:", logErr);
-                    }
+                    } catch (logErr) { console.error("Log failed", logErr); }
 
                     return new Response(JSON.stringify({ answer: result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
                 }

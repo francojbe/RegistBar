@@ -24,6 +24,8 @@
     "@ionic/pwa-elements": "^3.3.0",
     "@supabase/supabase-js": "^2.88.0",
     "capacitor-native-biometric": "^4.2.2",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.23.26",
     "heic2any": "^0.0.4",
     "jspdf": "^3.0.4",
