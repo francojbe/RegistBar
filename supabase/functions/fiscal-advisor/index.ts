@@ -8,8 +8,8 @@ export const corsHeaders = {
 // Configuration for multiple providers
 // Groq is prioritized after Gemini Preview. Cerebras is experimental fallback.
 const MODEL_CONFIG = [
-    { provider: 'gemini', model: 'gemini-3-flash-preview' },
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'gemini', model: 'gemini-3-flash-preview' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
     { provider: 'cerebras', model: 'llama3.1-8b' }
 ];
