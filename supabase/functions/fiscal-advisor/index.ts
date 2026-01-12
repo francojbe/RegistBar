@@ -22,6 +22,7 @@ const TOOLS_DEF = [
             type: "object",
             properties: {
                 period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
+                day: { type: "integer", description: "Día específico (1-31) si se busca una fecha puntual" },
                 month: { type: "integer", description: "Mes del 1 al 12" },
                 year: { type: "integer", description: "Año completo (ej: 2025)" },
                 week_number: { type: "integer", description: "Número de semana (1 a 5) si es specific_week" }
@@ -125,7 +126,15 @@ Deno.serve(async (req) => {
                     const end = `${y}-${String(m).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T23:59:59-03:00`;
                     q = q.gte('date', start).lte('date', end);
                 } else if (args.period === "custom") {
-                    if (args.year && args.month) {
+                    if (args.day && args.month && args.year) {
+                        // NEW: Specific Date Query
+                        const m = Math.max(1, Math.min(12, args.month));
+                        const d = String(args.day).padStart(2, '0');
+                        const mo = String(m).padStart(2, '0');
+                        const y = args.year;
+                        const dateStr = `${y}-${mo}-${d}`;
+                        q = q.gte('date', `${dateStr}T00:00:00-03:00`).lte('date', `${dateStr}T23:59:59-03:00`);
+                    } else if (args.year && args.month) {
                         const m = Math.max(1, Math.min(12, args.month));
                         const lastDay = new Date(args.year, m, 0).getDate();
                         const start = `${args.year}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`;
@@ -227,7 +236,7 @@ Deno.serve(async (req) => {
         const systemPrompt = `ERES ASESOR REGISTBAR.
         1. RESPONDE SIEMPRE EN ESPAÑOL CHILENO 🇨🇱.
         2. NATURALIDAD: NO Saludes siempre con "Hola [Nombre]". Sé fluido. Si la conversación sigue, ve directo al grano. Usa el nombre (user_name) solo ocasionalmente para dar calidez.
-        3. USA 'all_services_metrics' PARA RANKINGS, Y 'top_expenses_text' PARA DETALLE DE GASTOS.
+        3. USA 'all_services_metrics' PARA RANKINGS, Y 'top_expenses_text' PARA DETALLE DE GASTOS.  
         4. USA 'total_tips' SI PREGUNTAN POR PROPINAS (Es el monto exacto).
         5. REGLA DE ORO: LEE EL CAMPO 'period' del contexto. SI ES 'today', RESPONDE "Hoy llevas...". SI ES 'month', "Este mes llevas...". SÉ CLARO CON EL PERIODO.
         6. ANTI-ALUCINACIÓN: Si preguntan "¿Solo eso?" o "¿Algo más?", MIRA LA LISTA QUE TE DI. Si no hay más ítems, DI: "No tengo más registros". PROHIBIDO INVENTAR DATOS.
