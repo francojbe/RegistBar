@@ -21,7 +21,7 @@ const TOOLS_DEF = [
         parameters: {
             type: "object",
             properties: {
-                period: { type: "string", enum: ["this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
+                period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
                 month: { type: "integer", description: "Mes del 1 al 12" },
                 year: { type: "integer", description: "Año completo (ej: 2025)" },
                 week_number: { type: "integer", description: "Número de semana (1 a 5) si es specific_week" }
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            { global: { headers: { Authorization: authHeader ?? '' } }
+            { global: { headers: { Authorization: authHeader ?? '' } } }
         )
 
         // Client for Admin tasks (Secrets fetching) - No Auth Header override
@@ -78,24 +78,52 @@ Deno.serve(async (req) => {
             let q = supabaseClient.from('transactions').select('amount, type, title, category, date').eq('user_id', user.id);
 
             if (name === "get_financial_summary") {
-                if (args.period === "last_month" || (args.month === 12 && args.year === 2025)) {
-                    q = q.gte('date', '2025-12-01T00:00:00-03:00').lte('date', '2025-12-31T23:59:59-03:00');
+                // Dynamic Date Helpers (Chile Time estimation)
+                const getChileDate = (offsetDays = 0) => {
+                    const d = new Date();
+                    d.setHours(d.getHours() - 3); // Shift UTC to ~Chile
+                    d.setDate(d.getDate() + offsetDays);
+                    return d.toISOString().split('T')[0];
+                };
+
+                if (args.period === "today") {
+                    const todayStr = getChileDate(0);
+                    q = q.gte('date', `${todayStr}T00:00:00-03:00`).lte('date', `${todayStr}T23:59:59-03:00`);
+                } else if (args.period === "yesterday") {
+                    const yestStr = getChileDate(-1);
+                    q = q.gte('date', `${yestStr}T00:00:00-03:00`).lte('date', `${yestStr}T23:59:59-03:00`);
+                } else if (args.period === "last_month") {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - 1);
+                    const y = d.getFullYear();
+                    const m = d.getMonth() + 1;
+                    const lastDay = new Date(y, m, 0).getDate();
+                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`)
+                        .lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`);
                 } else if (args.period === "this_month") {
-                    q = q.gte('date', '2026-01-01T00:00:00-03:00');
+                    const d = new Date();
+                    const y = d.getFullYear();
+                    const m = d.getMonth() + 1;
+                    const lastDay = new Date(y, m + 1, 0).getDate();
+                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`)
+                        .lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`);
                 } else if (args.period === "this_week") {
-                    // Current date: 2026-01-11 (Sunday). Week Start (Monday): 2026-01-05
-                    q = q.gte('date', '2026-01-05T00:00:00-03:00').lte('date', '2026-01-11T23:59:59-03:00');
+                    const d = new Date();
+                    const day = d.getDay() || 7;
+                    if (day !== 1) d.setHours(-24 * (day - 1));
+                    const mondayStr = d.toISOString().split('T')[0];
+                    const end = new Date(d);
+                    end.setDate(end.getDate() + 6);
+                    const sundayStr = end.toISOString().split('T')[0];
+                    q = q.gte('date', `${mondayStr}T00:00:00-03:00`).lte('date', `${sundayStr}T23:59:59-03:00`);
                 } else if (args.period === "specific_week" && args.week_number) {
-                    // Logic: Week 1 (1-7), Week 2 (8-14), Week 3 (15-21), Week 4 (22-28), Week 5 (29-End)
-                    const y = args.year || 2026;
+                    const y = args.year || new Date().getFullYear();
                     const m = args.month || 1;
                     const startDay = ((args.week_number - 1) * 7) + 1;
                     const endDay = args.week_number === 5 ? new Date(y, m, 0).getDate() : startDay + 6;
-
                     const start = `${y}-${String(m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}T00:00:00-03:00`;
                     const end = `${y}-${String(m).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T23:59:59-03:00`;
                     q = q.gte('date', start).lte('date', end);
-
                 } else if (args.period === "custom") {
                     if (args.year && args.month) {
                         const m = Math.max(1, Math.min(12, args.month));
@@ -109,8 +137,9 @@ Deno.serve(async (req) => {
                         q = q.gte('date', start).lte('date', end);
                     }
                 } else if (args.period === "this_year") {
-                    const start = `2026-01-01T00:00:00-03:00`;
-                    const end = `2026-12-31T23:59:59-03:00`; // Added end date for this_year
+                    const y = new Date().getFullYear();
+                    const start = `${y}-01-01T00:00:00-03:00`;
+                    const end = `${y}-12-31T23:59:59-03:00`;
                     q = q.gte('date', start).lte('date', end);
                 }
 
@@ -182,7 +211,8 @@ Deno.serve(async (req) => {
                     total_tips: total_tips, // NEW: Exact DB calculation
                     all_services_metrics: JSON.stringify(all_services_metrics), // AI can read this full list
                     lowest_income_service: low_income_text, // Precise backup
-                    is_real_data: true
+                    is_real_data: true,
+                    period: args.period // Echo back period for AI context
                 };
             }
             if (name === "search_transactions") {
@@ -194,14 +224,12 @@ Deno.serve(async (req) => {
 
         // --- Provider Calling Logic ---
 
-        const systemPrompt = `ERES ASESOR REGISTBAR. HOY ES 11 DE ENERO DE 2026.
+        const systemPrompt = `ERES ASESOR REGISTBAR.
         1. RESPONDE SIEMPRE EN ESPAÑOL CHILENO 🇨🇱.
         2. NATURALIDAD: NO Saludes siempre con "Hola [Nombre]". Sé fluido. Si la conversación sigue, ve directo al grano. Usa el nombre (user_name) solo ocasionalmente para dar calidez.
         3. USA 'all_services_metrics' PARA RANKINGS, Y 'top_expenses_text' PARA DETALLE DE GASTOS.
         4. USA 'total_tips' SI PREGUNTAN POR PROPINAS (Es el monto exacto).
-        5. REGLA DE ORO: RESPONDE SOLO LO QUE SE PREGUNTA. NO DIGAS "NO SÉ" SI TIENES EL DATO EN LA LISTA.
-           - Si preguntan "En qué gasté", LEE 'top_expenses_text'.
-           - Si preguntan "Metas", habla SOLO de metas.
+        5. REGLA DE ORO: LEE EL CAMPO 'period' del contexto. SI ES 'today', RESPONDE "Hoy llevas...". SI ES 'month', "Este mes llevas...". SÉ CLARO CON EL PERIODO.
         6. ANTI-ALUCINACIÓN: Si preguntan "¿Solo eso?" o "¿Algo más?", MIRA LA LISTA QUE TE DI. Si no hay más ítems, DI: "No tengo más registros". PROHIBIDO INVENTAR DATOS.
         7. SÉ EXTREMADAMENTE BREVE Y CONCISO.`;
 
@@ -299,6 +327,7 @@ Deno.serve(async (req) => {
                     RESULTADO: ${JSON.stringify(toolRes)}. 
                     
                     INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE a la pregunta del usuario usando estos datos.
+                    - SI el periodo es 'today', enfatiza que son datos de HOY.
                     - NO des información extra que no se pidió.
                     - NO hagas resúmenes generales si preguntaron un dato puntual.
                     - Sé directo.`;
