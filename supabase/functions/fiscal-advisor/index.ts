@@ -22,7 +22,6 @@ const TOOLS_DEF = [
             type: "object",
             properties: {
                 period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month", "last_month", "this_year", "custom", "specific_week"] },
-                day: { type: "integer", description: "Día específico (1-31) si se busca una fecha puntual" },
                 month: { type: "integer", description: "Mes del 1 al 12" },
                 year: { type: "integer", description: "Año completo (ej: 2025)" },
                 week_number: { type: "integer", description: "Número de semana (1 a 5) si es specific_week" }
@@ -126,15 +125,7 @@ Deno.serve(async (req) => {
                     const end = `${y}-${String(m).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T23:59:59-03:00`;
                     q = q.gte('date', start).lte('date', end);
                 } else if (args.period === "custom") {
-                    if (args.day && args.month && args.year) {
-                        // NEW: Specific Date Query
-                        const m = Math.max(1, Math.min(12, args.month));
-                        const d = String(args.day).padStart(2, '0');
-                        const mo = String(m).padStart(2, '0');
-                        const y = args.year;
-                        const dateStr = `${y}-${mo}-${d}`;
-                        q = q.gte('date', `${dateStr}T00:00:00-03:00`).lte('date', `${dateStr}T23:59:59-03:00`);
-                    } else if (args.year && args.month) {
+                    if (args.year && args.month) {
                         const m = Math.max(1, Math.min(12, args.month));
                         const lastDay = new Date(args.year, m, 0).getDate();
                         const start = `${args.year}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`;
@@ -378,16 +369,8 @@ Deno.serve(async (req) => {
                             model: config.model,
                             context_data: toolCall ? toolRes : null
                         });
-
-                        // DEBUG: Capture Insert Failure
-                        if (error) {
-                            console.error("Supabase Insert Error:", error);
-                            const keyLen = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || "").length;
-                            result += `\n\n[DEBUG: Log DB Error: ${JSON.stringify(error)}. KeyLen: ${keyLen}]`;
-                        }
-                    } catch (logErr: any) {
-                        console.error("Logging Exception:", logErr);
-                        result += `\n\n[DEBUG: Log Exception: ${logErr.message}]`;
+                    } catch (logErr) {
+                        console.error("Logging failed:", logErr);
                     }
 
                     return new Response(JSON.stringify({ answer: result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
