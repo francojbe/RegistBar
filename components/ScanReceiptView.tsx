@@ -5,9 +5,6 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { SubscriptionPaywall } from './SubscriptionPaywall';
 
-// NOTE: completely removed @capacitor/camera imports to ensure web stability
-// We will use standard HTML5 Media Capture for native-like behavior on mobile web
-
 interface ScanReceiptViewProps {
     onClose: () => void;
 }
@@ -67,6 +64,16 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
             analyzeReceipt(capturedImage);
         }
     }, [capturedImage]);
+
+    // NEW: Auto-open camera on mount
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!capturedImage && fileInputRef.current) {
+                fileInputRef.current.click();
+            }
+        }, 500); // 0.5s delay to ensure smoother transition
+        return () => clearTimeout(timer);
+    }, []);
 
     // 4. Helper Functions
     const expenseCategories = [
@@ -188,6 +195,9 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
         setIsAnalyzing(false);
         // Reset file input so checking the same file again triggers onChange
         if (fileInputRef.current) fileInputRef.current.value = '';
+
+        // Auto-reopen camera slightly after clearing
+        setTimeout(() => fileInputRef.current?.click(), 200);
     };
 
     const handleSave = async () => {
@@ -275,18 +285,23 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
             </div>
 
             {/* --- MAIN CAMERA AREA --- */}
-            <div className="flex-1 relative bg-black flex flex-col items-center justify-center overflow-hidden shrink-0 min-h-[300px]">
+            <div className="flex-1 relative bg-slate-900 flex flex-col items-center justify-center overflow-hidden shrink-0 min-h-[300px]">
 
-                {/* 1. STATE: NO IMAGE */}
+                {/* 1. STATE: NO IMAGE (Waiting for camera) */}
                 {!capturedImage && (
-                    <div
-                        onClick={triggerNativeCamera}
-                        className="flex flex-col items-center gap-4 cursor-pointer p-8 rounded-2xl active:bg-white/5 transition-colors"
-                    >
-                        <div className="size-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center shadow-2xl">
-                            <Icon name="photo_camera" size={36} className="text-emerald-400" />
+                    <div className="flex flex-col items-center justify-center w-full h-full p-6 text-center">
+                        <div
+                            onClick={triggerNativeCamera}
+                            className="flex flex-col items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                            <div className="size-24 rounded-full bg-slate-800 border-4 border-emerald-500/30 flex items-center justify-center animate-pulse">
+                                <Icon name="photo_camera" size={40} className="text-emerald-500" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-white font-bold text-xl">Iniciar Cámara</h3>
+                                <p className="text-slate-400 text-sm">Si no se abre automáticamente, toca aquí</p>
+                            </div>
                         </div>
-                        <p className="text-slate-400 font-medium">Toca para tomar foto</p>
                     </div>
                 )}
 
@@ -300,7 +315,7 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                         />
                         <button
                             onClick={retakePhoto}
-                            className="absolute bottom-4 right-4 bg-black/60 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/20 flex items-center gap-2"
+                            className="absolute bottom-4 right-4 bg-black/60 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/20 flex items-center gap-2 shadow-lg"
                         >
                             <Icon name="replay" size={18} /> Reintentar
                         </button>
@@ -308,7 +323,11 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                 )}
 
                 {/* HIDDEN INPUT FOR NATIVE CAMERA */}
-                {/* accept="image/*" + capture="environment" forces rear camera on mobile */}
+                {/* 
+                   accept="image/*" + capture="environment" -> Standard for Rear Camera
+                   Some devices might treat 'image/jpeg' more strictly for capture. 
+                   Keeping standard recommended attributes.
+                */}
                 <input
                     ref={fileInputRef}
                     type="file"
