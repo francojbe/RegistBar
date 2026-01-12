@@ -460,15 +460,24 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Fecha</label>
                                     <input
                                         type="date"
-                                        value={editingTx.rawDate ? new Date(editingTx.rawDate).toISOString().split('T')[0] : ''}
+                                        value={(() => {
+                                            if (!editingTx.rawDate) return '';
+                                            const d = new Date(editingTx.rawDate);
+                                            const year = d.getFullYear();
+                                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                                            const day = String(d.getDate()).padStart(2, '0');
+                                            return `${year}-${month}-${day}`;
+                                        })()}
                                         onChange={(e) => {
-                                            // Maintain the time if possible, or just set to noon UTC for stability
                                             const newDateStr = e.target.value;
                                             if (newDateStr) {
                                                 const originalDate = new Date(editingTx.rawDate || new Date());
-                                                const [year, month, day] = newDateStr.split('-').map(Number);
+                                                const [y, m, d] = newDateStr.split('-').map(Number);
+
+                                                // Local time update
                                                 const updatedDate = new Date(originalDate);
-                                                updatedDate.setFullYear(year, month - 1, day);
+                                                updatedDate.setFullYear(y, m - 1, d);
+
                                                 setEditingTx({ ...editingTx, rawDate: updatedDate.toISOString() });
                                             }
                                         }}
