@@ -27,6 +27,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             <button
               key={item.tab}
               onClick={() => onTabChange(item.tab)}
+              data-tour={isAdvisor ? 'advisor-tab' : undefined}
               className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors group relative ${isActive
                 ? 'text-primary'
                 : 'text-slate-400 hover:text-slate-600'

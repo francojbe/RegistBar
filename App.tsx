@@ -18,12 +18,14 @@ import { AnnouncementListener } from './components/AnnouncementListener';
 import { TipModal } from './components/TipModal';
 import { NewServiceModal } from './components/NewServiceModal';
 import { SupplyExpenseModal } from './components/SupplyExpenseModal';
+import { OnboardingTour } from './components/OnboardingTour';
 
 import { NotificationsModal } from './components/NotificationsModal';
 import { NotificationBell } from './components/NotificationBell';
 import { AdminView } from './components/AdminView';
 import { CompleteProfileView } from './components/CompleteProfileView';
 import { ResetPasswordView } from './components/ResetPasswordView';
+import { UpdateChecker } from './components/UpdateChecker';
 import { App as CapacitorApp } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -450,6 +452,8 @@ const App: React.FC = () => {
 
   return (
     <ToastProvider>
+      <OnboardingTour />
+      <UpdateChecker />
       <AnnouncementListener />
       <div className="min-h-screen bg-background-light font-display">
         {/* Top Gradient Blob */}
@@ -473,7 +477,9 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <NotificationBell onClick={() => setShowNotifications(true)} />
+              <div data-tour="notification-bell">
+                <NotificationBell onClick={() => setShowNotifications(true)} />
+              </div>
               <button
                 onClick={signOut}
                 className="flex items-center justify-center size-12 rounded-full bg-white shadow-soft hover:shadow-lg transition-all active:scale-95 text-red-500"
@@ -505,7 +511,7 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="flex flex-col gap-6"
               >
-                <section className="flex flex-col gap-4">
+                <section className="flex flex-col gap-4" data-tour="balance-card">
                   <FiscalSavingsCard grossIncome={totalIncome} netIncome={totalGrossIncome} />
                 </section>
 
@@ -520,7 +526,7 @@ const App: React.FC = () => {
                   </section>
                 )}
 
-                <section>
+                <section data-tour="kpi-grid">
                   <KpiGrid items={kpis} />
                 </section>
 
@@ -612,6 +618,7 @@ const App: React.FC = () => {
 
             {/* Main FAB Toggle */}
             <button
+              data-tour="fab-button"
               onClick={() => setIsFabOpen(!isFabOpen)}
               className={`group flex items-center justify-center size-14 rounded-full shadow-neon hover:scale-105 transition-all duration-300 active:scale-95 z-50 pointer-events-auto ${isFabOpen ? 'bg-slate-800 text-white rotate-45' : 'bg-primary text-background-dark'}`}
             >
