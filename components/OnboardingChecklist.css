@@ -1,0 +1,22 @@
+.onboarding-checklist-container {
+    padding-top: 1rem;
+}
+
+.shadow-premium {
+    box-shadow: 0 10px 40px -10px rgba(139, 92, 246, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.05);
+}
+
+@keyframes progress-ping {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+.animate-glow-bulb {
+    animation: glow-bulb 2s infinite ease-in-out;
+}
+
+@keyframes glow-bulb {
+    0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(139, 92, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+}

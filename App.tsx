@@ -19,6 +19,7 @@ import { TipModal } from './components/TipModal';
 import { NewServiceModal } from './components/NewServiceModal';
 import { SupplyExpenseModal } from './components/SupplyExpenseModal';
 import { OnboardingTour } from './components/OnboardingTour';
+import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { NotificationsModal } from './components/NotificationsModal';
 import { NotificationBell } from './components/NotificationBell';
@@ -48,26 +49,24 @@ const App: React.FC = () => {
 
 
 
-  // Push Notifications Setup
+  const requestPushPermissions = async () => {
+    if (Capacitor.getPlatform() === 'web') return;
+    
+    let permStatus = await PushNotifications.checkPermissions();
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+
+    if (permStatus.receive === 'granted') {
+      await PushNotifications.register();
+      return true;
+    }
+    return false;
+  };
+
+  // Push Notifications Setup (Listeners only on mount)
   React.useEffect(() => {
     if (Capacitor.getPlatform() === 'web') return;
-
-    const registerPush = async () => {
-      let permStatus = await PushNotifications.checkPermissions();
-
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
-      }
-
-      if (permStatus.receive !== 'granted') {
-        console.log('User denied permissions!');
-        return;
-      }
-
-      await PushNotifications.register();
-    };
-
-    registerPush();
 
     // Listeners
     PushNotifications.addListener('registration', token => {
@@ -455,7 +454,7 @@ const App: React.FC = () => {
       <OnboardingTour />
       <UpdateChecker />
       <AnnouncementListener />
-      <div className="min-h-screen bg-background-light font-display">
+      <div className="min-h-screen bg-background-light font-display pt-[calc(env(safe-area-inset-top)+1rem)]">
         {/* Top Gradient Blob */}
         <div className="fixed top-0 left-0 right-0 h-[500px] w-full -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-primary/20 blur-[100px] rounded-full mix-blend-multiply opacity-70 animate-blob"></div>
@@ -530,6 +529,16 @@ const App: React.FC = () => {
                   <KpiGrid items={kpis} />
                 </section>
 
+                <OnboardingChecklist 
+                  userData={user?.user_metadata} 
+                  transactions={recentTransactions} 
+                  onAction={(type) => {
+                    if (type === 'new-service') setShowNewService(true);
+                    if (type === 'advisor') setActiveTab(Tab.Advisor);
+                    if (type === 'profile') setActiveTab(Tab.Profile);
+                  }}
+                />
+
                 <section className="mt-2">
                   <h3 className="text-base font-bold text-slate-900 mb-4 px-1">Últimos Ingresos</h3>
                   <TransactionsList transactions={recentTransactions} />
@@ -547,7 +556,10 @@ const App: React.FC = () => {
 
         {/* FAB - Only for Home */}
         {activeTab === Tab.Home && (
-          <div className="fixed bottom-24 right-5 z-40 flex flex-col items-end gap-3 pointer-events-none">
+          <div
+            className="fixed right-5 z-50 flex flex-col items-end gap-3 pointer-events-none"
+            style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+          >
             {/* FAB Menu Options */}
             <div className={`flex flex-col gap-3 transition-all duration-300 origin-bottom-right relative z-50 pointer-events-auto ${isFabOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-75 translate-y-10 invisible'}`}>
 
@@ -639,7 +651,7 @@ const App: React.FC = () => {
         <AnimatePresence>
           {showScan && <ScanReceiptView onClose={() => setShowScan(false)} />}
           {showTip && <TipModal onClose={() => setShowTip(false)} />}
-          {showNewService && <NewServiceModal onClose={() => setShowNewService(false)} />}
+          {showNewService && <NewServiceModal onClose={() => setShowNewService(false)} onRequestPush={requestPushPermissions} />}
           {showSupplyExpense && <SupplyExpenseModal onClose={() => setShowSupplyExpense(false)} />}
           {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
         </AnimatePresence>

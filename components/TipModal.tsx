@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { useCurrency } from '../utils/currency';
 
 interface TipModalProps {
     onClose: () => void;
@@ -13,6 +14,7 @@ interface TipModalProps {
 export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { format, symbol, locale } = useCurrency();
     const [loading, setLoading] = useState(false);
     const [amountStr, setAmountStr] = useState<string>('0');
     const [isAmountHidden, setIsAmountHidden] = useState(false);
@@ -71,7 +73,7 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
     const formatAmount = (str: string) => {
         if (!str) return '0';
         const num = parseInt(str, 10);
-        return isNaN(num) ? '0' : num.toLocaleString('es-CL');
+        return isNaN(num) ? '0' : num.toLocaleString(locale);
     };
 
     const handleSave = async () => {
@@ -130,7 +132,7 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
                         <div key={idx} className="flex flex-col gap-2">
                             <label className="text-xs font-bold text-slate-500 uppercase">Botón {idx + 1}</label>
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{symbol}</span>
                                 <input
                                     type="number"
                                     value={val}
@@ -189,7 +191,7 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
                             className="flex items-center justify-center gap-1 cursor-text"
                         >
                             <span className="text-6xl font-extrabold text-slate-900 transition-all tracking-tight">
-                                $ {isAmountHidden ? '•••••' : formatAmount(amountStr)}
+                                {symbol} {isAmountHidden ? '•••••' : formatAmount(amountStr)}
                             </span>
                             {!isAmountHidden && (
                                 <div className="w-1 h-12 bg-primary animate-pulse ml-1 rounded-full"></div>
@@ -227,7 +229,7 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
                                 onClick={() => handleQuickAdd(val)}
                                 className="px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold text-sm hover:bg-slate-50 hover:border-primary/50 hover:text-primary active:scale-95 transition-all shadow-sm flex-1"
                             >
-                                + ${val.toLocaleString('es-CL')}
+                                + {symbol}{val.toLocaleString(locale)}
                             </button>
                         ))}
                     </div>

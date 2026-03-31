@@ -26,6 +26,7 @@ export const ProfileView: React.FC = () => {
     const [expenseModel, setExpenseModel] = useState<'commission' | 'rent'>('commission');
     const [rentAmount, setRentAmount] = useState<number>(0);
     const [rentPeriod, setRentPeriod] = useState<'weekly' | 'monthly'>('monthly');
+    const [userCurrency, setUserCurrency] = useState('CLP');
 
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
@@ -93,7 +94,7 @@ export const ProfileView: React.FC = () => {
             // Fetch Profile
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('commission_rate, first_name, last_name, expense_model, rent_amount, rent_period')
+                .select('commission_rate, first_name, last_name, expense_model, rent_amount, rent_period, currency')
                 .eq('id', user.id)
                 .single();
 
@@ -102,6 +103,7 @@ export const ProfileView: React.FC = () => {
                 setExpenseModel(profileData.expense_model || 'commission');
                 setRentAmount(profileData.rent_amount || 0);
                 setRentPeriod(profileData.rent_period || 'monthly');
+                setUserCurrency(profileData.currency || 'CLP');
 
                 setEditCommissionRate(profileData.commission_rate ?? 40);
                 setEditExpenseModel(profileData.expense_model || 'commission');
@@ -581,7 +583,7 @@ export const ProfileView: React.FC = () => {
 
                             {/* NEW: Expenses Model Selector */}
                             <div className="flex flex-col gap-3 pt-4 border-t border-dashed border-slate-200">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Modelo de Costo (Salón)</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase">Modelo de Costo (Lugar de Trabajo)</label>
 
                                 <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
                                     <button
@@ -646,7 +648,7 @@ export const ProfileView: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-400 px-1">
-                                            Monto fijo que pagas por el arriendo del sillón.
+                                            Monto fijo que pagas por el arriendo del espacio.
                                         </p>
                                     </div>
                                 )}
@@ -709,7 +711,7 @@ export const ProfileView: React.FC = () => {
                                                 <span className="text-xs font-bold text-slate-400 uppercase">Comisión</span>
                                             </div>
                                             <p className="text-base font-bold text-slate-900">{commissionRate}%</p>
-                                            <p className="text-[10px] text-slate-500">Salón</p>
+                                            <p className="text-[10px] text-slate-500">Lugar</p>
                                         </>
                                     ) : (
                                         <>
@@ -723,6 +725,17 @@ export const ProfileView: React.FC = () => {
                                             <p className="text-[10px] text-slate-500 capitalize">{rentPeriod === 'weekly' ? 'Semanal' : 'Mensual'}</p>
                                         </>
                                     )}
+                                </div>
+                            </div>
+
+                            {/* Currency Info (Read Only) */}
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 w-full flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-green-100 text-green-600">
+                                    <Icon name="payments" size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase">Moneda</p>
+                                    <p className="text-sm font-bold text-slate-900">{userCurrency}</p>
                                 </div>
                             </div>
 

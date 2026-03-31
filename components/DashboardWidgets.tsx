@@ -5,7 +5,8 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 
-// --- Savings Card (Now Income Accumulator) ---
+import { useCurrency } from '../utils/currency';
+
 // --- Savings Card (Now Income Accumulator) ---
 interface FiscalSavingsCardProps {
   grossIncome: number;
@@ -13,6 +14,8 @@ interface FiscalSavingsCardProps {
 }
 
 export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({ grossIncome, netIncome }) => {
+  const { format } = useCurrency();
+
   return (
     <div className="w-full bg-white rounded-[2.5rem] p-8 shadow-soft relative overflow-hidden group transition-transform hover:scale-[1.01] duration-300">
       <div className="relative z-10 flex flex-col gap-4">
@@ -21,7 +24,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({ grossIncom
             <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Balance Semanal (Neto)</p>
             <div className="flex items-baseline gap-2">
               <p className="text-4xl font-extrabold leading-none text-slate-900 tracking-tighter">
-                $ {grossIncome.toLocaleString('es-CL')}
+                {format(grossIncome)}
               </p>
             </div>
           </div>
@@ -34,7 +37,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({ grossIncom
           <div className="flex flex-col">
             <span className="text-xs font-bold text-slate-400 mb-1">Ventas Totales (Bruto)</span>
             <span className={`text-lg font-bold ${netIncome < 0 ? 'text-red-500' : 'text-slate-900'}`}>
-              $ {netIncome.toLocaleString('es-CL')}
+              {format(netIncome)}
             </span>
           </div>
         </div>
@@ -53,6 +56,7 @@ interface SavingsGoalCardProps {
 
 export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, savingsGoal, savingsGoalName, onGoalUpdated }) => {
   const { user } = useAuth();
+  const { format, symbol } = useCurrency(); // Get symbol too for input labels
   const [isExpanded, setIsExpanded] = useState(false);
   const [addAmount, setAddAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -191,7 +195,7 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, 
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
               {savingsGoalName || 'MI META'}
             </span>
-            <h3 className="text-xl font-bold text-slate-900 leading-tight">$ {currentSaved.toLocaleString('es-CL')}</h3>
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">{format(currentSaved)}</h3>
             <p className="text-xs font-medium text-slate-400">
               {isCompleted ? '¡META COMPLETADA!' : 'Ahorro Actual (Propio)'}
             </p>
@@ -242,7 +246,7 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, 
 
       <div className="flex justify-between text-xs font-bold text-slate-400">
         <span>0%</span>
-        <span>Meta: ${savingsGoal.toLocaleString('es-CL')}</span>
+        <span>Meta: {format(savingsGoal)}</span>
       </div>
 
       {/* Expanded Manual Input Section */}
@@ -251,7 +255,7 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, 
           <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Agregar Ahorro Manual</label>
           <div className="flex gap-2 relative z-50">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{symbol}</span>
               <input
                 type="number"
                 value={addAmount}
@@ -316,6 +320,25 @@ interface TransactionsListProps {
 }
 
 export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions }) => {
+  const { format } = useCurrency();
+
+  if (transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 gap-4 mt-2">
+        <div className="size-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+          <Icon name="history_toggle_off" size={32} />
+        </div>
+        <div className="text-center">
+          <h4 className="text-slate-900 font-bold text-base">Aún no hay movimientos</h4>
+          <p className="text-slate-400 text-xs font-medium max-w-[200px]">Registra tu primer servicio presionando el botón "+" abajo.</p>
+        </div>
+        <div className="animate-bounce">
+          <Icon name="arrow_downward" size={24} className="text-primary/30" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {transactions.map((tx) => (
@@ -331,7 +354,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions
           </div>
           <div className="flex flex-col items-end">
             <span className="text-base font-bold text-slate-900">
-              ${Number(tx.amount).toLocaleString('es-CL')}
+              {format(Number(tx.amount))}
             </span>
             <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-bold">Ver</span>
           </div>

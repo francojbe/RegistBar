@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { useCurrency } from '../utils/currency';
 
 interface SupplyExpenseModalProps {
     onClose: () => void;
@@ -13,6 +14,7 @@ interface SupplyExpenseModalProps {
 export const SupplyExpenseModal: React.FC<SupplyExpenseModalProps> = ({ onClose }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { symbol } = useCurrency();
     const [loading, setLoading] = useState(false);
     const [amount, setAmount] = useState<number>(0);
     const [description, setDescription] = useState('');
@@ -92,7 +94,7 @@ export const SupplyExpenseModal: React.FC<SupplyExpenseModalProps> = ({ onClose 
                 <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-slate-500 uppercase">Monto del Gasto</label>
                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{symbol}</span>
                         <input
                             type="number"
                             value={amount || ''}
@@ -110,7 +112,7 @@ export const SupplyExpenseModal: React.FC<SupplyExpenseModalProps> = ({ onClose 
                         type="text"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Ej: Tinturas, Shampoo..."
+                        placeholder="Ej: Esmaltes, Cremas, Insumos..."
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 transition-all"
                     />
                 </div>

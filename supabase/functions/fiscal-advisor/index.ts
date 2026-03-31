@@ -72,7 +72,14 @@ REGLAS DE ORO DE ENTRENAMIENTO (BASADO EN AUDITORÍA DE 20 ÚLTIMOS LOGS):
    - "Este año" es exclusivamente desde el 1 de enero de 2026.
    - "El año pasado" es 2025.
 
-REGLA DE SEGURIDAD: Prefiero que digas "No lo sé" a que mientas sobre las finanzas de Franco.`;
+REGLA DE SEGURIDAD: Prefiero que digas "No lo sé" a que mientas sobre las finanzas de Franco.
+
+5. INTERNACIONALIZACIÓN Y MONEDA:
+   - Tu identidad base es chilena (CLP), PERO si en los datos de la herramienta ("get_financial_summary") ves el campo 'user_currency', DEBES ADAPTARTE.
+   - Si user_currency='USD' -> Habla en DÓLARES. Formato: $1,200.50 (coma para miles, punto para decimales).
+   - Si user_currency='EUR' -> Habla en EUROS. Formato: 1.200,50 € (punto para miles, coma decimal).
+   - Si user_currency='CLP' -> Mantén formato chileno ($1.200).
+   - Respeta siempre la moneda del usuario en TODOS los montos que menciones.`;
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -154,7 +161,7 @@ Deno.serve(async (req) => {
                 }
 
                 const { data } = await q;
-                const { data: profile } = await supabaseClient.from('profiles').select('first_name').eq('id', user.id).single();
+                const { data: profile } = await supabaseClient.from('profiles').select('first_name, currency').eq('id', user.id).single();
                 const { data: goals } = await supabaseClient.from('goals').select('title, target_amount, current_amount, deadline').eq('user_id', user.id);
 
                 const income_txs = data?.filter(t => t.type === 'income') || [];
@@ -184,7 +191,8 @@ Deno.serve(async (req) => {
                     top_expenses_text: Object.entries(breakdown).sort(([, a], [, b]) => b - a).slice(0, 15).map(([k, v]) => `- ${k}: $${v}`).join("\n"),
                     all_services_metrics: JSON.stringify(Object.entries(service_metrics).map(([name, m]) => ({ name, count: m.count, income: m.income })).sort((a, b) => b.income - a.income)),
                     is_real_data: (data && data.length > 0) ? true : false,
-                    period_requested: args.period
+                    period_requested: args.period,
+                    user_currency: profile?.currency || 'CLP'
                 };
             }
             if (name === "search_transactions") {

@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 
 import { useToast } from '../contexts/ToastContext';
+import { useCurrency } from '../utils/currency';
 
 interface IncomeViewProps {
     onGoToReports: () => void;
@@ -17,6 +18,7 @@ interface IncomeViewProps {
 export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { format, code, symbol } = useCurrency();
     const [showNewService, setShowNewService] = useState(false);
     const [showScanReceipt, setShowScanReceipt] = useState(false);
     const [showTipModal, setShowTipModal] = useState(false);
@@ -263,8 +265,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                         </div>
 
                         <div className="flex items-baseline gap-2 mb-2">
-                            <span className="text-5xl font-bold text-slate-900 tracking-tight">$ {dailyTotal.toLocaleString('es-CL')}</span>
-                            <span className="text-lg font-medium text-slate-400">CLP</span>
+                            <span className="text-5xl font-bold text-slate-900 tracking-tight">{format(dailyTotal)}</span>
+                            <span className="text-lg font-medium text-slate-400">{code}</span>
                         </div>
 
                         <p className="text-sm text-slate-500 font-medium">{serviceCount} servicios realizados hoy</p>
@@ -386,7 +388,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                                         </div>
                                     </div>
                                     <span className={`text-sm font-bold font-mono ${tx.icon === 'shopping_bag' ? 'text-red-500' : 'text-slate-900'}`}>
-                                        {tx.icon === 'shopping_bag' ? '-' : '+'}${tx.amount.toLocaleString('es-CL')}
+                                        {tx.icon === 'shopping_bag' ? '-' : '+'}{format(Math.abs(tx.amount))}
                                     </span>
                                 </motion.div>
                             </div>
@@ -447,7 +449,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                                 </div>
 
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Monto ($)</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Monto ({symbol})</label>
                                     <input
                                         type="number"
                                         value={Math.abs(editingTx.amount).toString().replace(/^0+/, '')}

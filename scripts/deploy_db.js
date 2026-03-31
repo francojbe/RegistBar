@@ -1,6 +1,6 @@
 import https from 'https';
 
-const PROJECT_REF = 'pdtjcemyrdwolgqlvxew';
+const PROJECT_REF = 'pszkcntmkvtylvwnuflg';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 
 // SQL simplificado en una sola línea para evitar problemas de JSON

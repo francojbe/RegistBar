@@ -14,6 +14,7 @@ export const LoginView: React.FC = () => {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [gender, setGender] = useState<'female' | 'male' | null>(null);
+    const [currency, setCurrency] = useState('CLP');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -119,6 +120,7 @@ export const LoginView: React.FC = () => {
                         data: {
                             full_name: fullName,
                             gender: gender, // Save gender
+                            currency: currency, // Save selected currency
                             avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`,
                             theme: gender === 'male' ? 'ocean' : gender === 'female' ? 'pink' : 'default'
                         }
@@ -315,11 +317,71 @@ export const LoginView: React.FC = () => {
                                     </>
                                 )}
 
+                                {isRegistering && (
+                                    <div className="flex flex-col gap-2 animate-fade-in">
+                                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Moneda Principal</label>
+                                        <div className="relative group">
+                                            <Icon name="payments" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors pointer-events-none" />
+                                            <select
+                                                value={currency}
+                                                onChange={(e) => setCurrency(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/5 rounded-2xl pl-12 pr-10 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all font-medium appearance-none cursor-pointer"
+                                            >
+                                                {[
+                                                    {
+                                                        group: 'Norteamérica', options: [
+                                                            { code: 'MXN', label: 'Peso Mexicano', flag: '🇲🇽' },
+                                                            { code: 'USD', label: 'Dólar (EEUU)', flag: '🇺🇸' },
+                                                        ]
+                                                    },
+                                                    {
+                                                        group: 'Sudamérica', options: [
+                                                            { code: 'CLP', label: 'Peso Chileno', flag: '🇨🇱' },
+                                                            { code: 'ARS', label: 'Peso Argentino', flag: '🇦🇷' },
+                                                            { code: 'BOB', label: 'Boliviano', flag: '🇧🇴' },
+                                                            { code: 'COP', label: 'Peso Colombiano', flag: '🇨🇴' },
+                                                            { code: 'PEN', label: 'Sol Peruano', flag: '🇵🇪' },
+                                                            { code: 'PYG', label: 'Guaraní (Paraguay)', flag: '🇵🇾' },
+                                                            { code: 'UYU', label: 'Peso Uruguayo', flag: '🇺🇾' },
+                                                            { code: 'VES', label: 'Bolívar (Venezuela)', flag: '🇻🇪' },
+                                                        ]
+                                                    },
+                                                    {
+                                                        group: 'Centroamérica y Caribe', options: [
+                                                            { code: 'CRC', label: 'Colón (Costa Rica)', flag: '🇨🇷' },
+                                                            { code: 'DOP', label: 'Peso Dominicano', flag: '🇩🇴' },
+                                                            { code: 'GTQ', label: 'Quetzal (Guatemala)', flag: '🇬🇹' },
+                                                            { code: 'HNL', label: 'Lempira (Honduras)', flag: '🇭🇳' },
+                                                            { code: 'NIO', label: 'Córdoba (Nicaragua)', flag: '🇳🇮' },
+                                                        ]
+                                                    },
+                                                    {
+                                                        group: 'Europa', options: [
+                                                            { code: 'EUR', label: 'Euro', flag: '🇪🇺' },
+                                                        ]
+                                                    }
+                                                ].map((g) => (
+                                                    <optgroup key={g.group} label={g.group} className="text-slate-900 font-bold bg-white">
+                                                        {g.options.map((c) => (
+                                                            <option key={c.code} value={c.code} className="text-slate-900 font-medium">
+                                                                {c.flag} {c.label} ({c.code})
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                                <Icon name="expand_more" size={20} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="group relative">
                                     <Icon name="mail" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
                                     <input
                                         type="email"
-                                        placeholder="Correo Institucional"
+                                        placeholder="Correo Electrónico"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required

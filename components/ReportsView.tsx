@@ -6,10 +6,12 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { generateMonthlyReportPDF } from '../utils/pdfGenerator';
 import { motion } from 'framer-motion';
+import { useCurrency } from '../utils/currency';
 
 export const ReportsView: React.FC = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { format } = useCurrency();
 
 
     // 1. Initialize from cache if available to prevent 0/loading flash
@@ -309,21 +311,21 @@ export const ReportsView: React.FC = () => {
                             <Icon name="trending_up" size={12} className="text-green-500" />
                             <span className="text-[9px] font-bold text-slate-400 uppercase">Ingresos</span>
                         </div>
-                        <span className="text-sm font-black text-slate-900 truncate">${totalIncome.toLocaleString('es-CL')}</span>
+                        <span className="text-sm font-black text-slate-900 truncate">{format(totalIncome)}</span>
                     </div>
                     <div className="flex flex-col p-3 bg-slate-50 rounded-2xl border border-slate-100">
                         <div className="flex items-center gap-1 mb-1">
                             <Icon name="trending_down" size={12} className="text-red-500" />
                             <span className="text-[9px] font-bold text-slate-400 uppercase">Egresos</span>
                         </div>
-                        <span className="text-sm font-black text-slate-900 truncate">${totalExpenses.toLocaleString('es-CL')}</span>
+                        <span className="text-sm font-black text-slate-900 truncate">{format(totalExpenses)}</span>
                     </div>
                     <div className="flex flex-col p-3 bg-primary/10 rounded-2xl ring-1 ring-primary/20">
                         <div className="flex items-center gap-1 mb-1">
                             <Icon name="account_balance_wallet" size={12} className="text-primary" />
                             <span className="text-[9px] font-bold text-primary uppercase">Neto</span>
                         </div>
-                        <span className="text-sm font-black text-primary truncate">${balance.toLocaleString('es-CL')}</span>
+                        <span className="text-sm font-black text-primary truncate">{format(balance)}</span>
                     </div>
                 </div>
             </div>
@@ -374,7 +376,7 @@ export const ReportsView: React.FC = () => {
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className={`text-sm font-black ${tx.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                                    {tx.type === 'income' ? '+' : '-'} ${Math.abs(tx.amount).toLocaleString('es-CL')}
+                                    {tx.type === 'income' ? '+' : '-'} {format(Math.abs(tx.amount))}
                                 </span>
                                 <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">{tx.time}</span>
                             </div>

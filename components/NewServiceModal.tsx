@@ -5,14 +5,17 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { useCurrency } from '../utils/currency';
 
 interface NewServiceModalProps {
     onClose: () => void;
+    onRequestPush?: () => Promise<boolean>;
 }
 
-export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => {
+export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onRequestPush }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { format, symbol, locale } = useCurrency();
     const [loading, setLoading] = useState(false);
     const [totalPrice, setTotalPrice] = useState<string>('');
     const [commissionRate, setCommissionRate] = useState<number>(0); // Percentage
@@ -96,8 +99,17 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => 
             showToast('Error al guardar el servicio', 'error');
         } else {
             showToast('¡Servicio registrado con éxito!', 'success');
+            
+            // Request push permissions in a moment of 'success'
+            if (onRequestPush) {
+                await onRequestPush();
+            }
+
             onClose();
-            window.location.reload();
+            // Using a timeout to allow the toast and potential push modal to be seen
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         }
     };
 
@@ -129,7 +141,7 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => 
                         value={serviceName}
                         onChange={(e) => setServiceName(e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
-                        placeholder="Ej: Corte de Cabello"
+                        placeholder="Ej: Servicio, Corte, Manicure..."
                     />
                 </div>
                 {/* Date and Time Selection */}
@@ -152,7 +164,7 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => 
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-bold text-slate-500 uppercase">Precio Total del Servicio</label>
                         <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{symbol}</span>
                             <input
                                 type="text"
                                 inputMode="numeric"
@@ -177,12 +189,12 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => 
                     <div className="flex flex-col gap-3 mb-6 border-b border-dashed border-slate-100 pb-6">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-500 font-medium">Total Cliente</span>
-                            <span className="font-bold text-slate-900">$ {totalPrice.toLocaleString('es-CL')}</span>
+                            <span className="font-bold text-slate-900">{format(totalPrice)}</span>
                         </div>
                         {expenseModel === 'commission' && (
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500 font-medium">Comisión Salón <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold ml-1">{commissionRate}%</span></span>
-                                <span className="font-bold text-red-500">- $ {commissionAmount.toLocaleString('es-CL')}</span>
+                                <span className="font-bold text-red-500">- {format(commissionAmount)}</span>
                             </div>
                         )}
                         {expenseModel === 'rent' && (
@@ -196,17 +208,36 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose }) => 
                     <div className="mb-4">
                         <p className="text-sm font-bold text-slate-400 mb-1">Ingreso Líquido Estimado</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-extrabold text-primary tracking-tight">$ {liquidIncome.toLocaleString('es-CL')}</span>
-                            <span className="text-sm font-bold text-slate-400">CLP</span>
+                            <span className="text-4xl font-extrabold text-primary tracking-tight">{format(liquidIncome)}</span>
+                            {/* <span className="text-sm font-bold text-slate-400">CLP</span> Removed hardcoded CLP */}
                         </div>
                     </div>
 
-                    <div className="bg-blue-50/50 rounded-xl p-3 flex gap-3 items-start border border-blue-100">
-                        <Icon name="info" size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                        <p className="text-[11px] leading-relaxed text-slate-600 font-medium">
-                            <span className="text-blue-700 font-bold block mb-1">Recomendación tributaria:</span>
-                            Si decides declarar impuestos por este servicio, el monto sugerido a provisionar para tu pago de impuestos sería de <span className="font-bold text-slate-800">$ {retention.toLocaleString('es-CL')}</span>.
-                        </p>
+                    {/* Smart Business Tip (AI Powered Advice) */}
+                    <div className="bg-gradient-to-r from-violet-50 to-fuchsia-50 rounded-xl p-4 flex gap-3 items-start border border-violet-100/50 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <Icon name="tips_and_updates" size={64} className="text-violet-500" />
+                        </div>
+
+                        <div className="p-2 bg-white rounded-full shadow-sm text-violet-500 shrink-0 z-10">
+                            <Icon name="lightbulb" size={18} />
+                        </div>
+
+                        <div className="flex flex-col z-10">
+                            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-0.5">Tip de Crecimiento</span>
+                            <p className="text-xs leading-relaxed text-slate-700 font-medium">
+                                {[
+                                    "¿El cliente necesita algún producto para mantener este look en casa? ¡Ofrece una venta cruzada!",
+                                    "Antes de cobrar, pregunta: '¿Te gustaría agregar un perfilado de cejas o masaje rápido?'",
+                                    "Un cliente feliz trae a dos más. Pídele que te etiquete en su historia de Instagram.",
+                                    "Asegura el regreso: '¿Dejamos agendada tu próxima cita para dentro de 3 semanas?'",
+                                    "La experiencia lo es todo. Un simple '¿Deseas un vaso de agua?' puede aumentar tu propina.",
+                                    "Toma una foto del resultado (con permiso) para tu portafolio. Es marketing gratis.",
+                                    "Si es cliente nuevo, ofrécele una tarjeta de lealtad o descuento para su segunda visita.",
+                                    "Explícale qué productos usaste. Educar al cliente aumenta tu autoridad y confianza."
+                                ][Math.floor(Math.random() * 8)]}
+                            </p>
+                        </div>
                     </div>
                 </div>
 

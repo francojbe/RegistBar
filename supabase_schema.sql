@@ -8,7 +8,15 @@ create table public.profiles (
   email text,
   full_name text,
   avatar_url text,
+  first_name text,
+  last_name text,
+  fcm_token text,
+  subscription_status text default 'free',
+  currency text default 'CLP',
   commission_rate integer default 40, -- Default 40% commission
+  expense_model text default 'commission', -- 'commission' or 'rent'
+  rent_amount numeric default 0,
+  rent_period text default 'monthly', -- 'weekly' or 'monthly'
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -32,7 +40,7 @@ begin
   values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users
