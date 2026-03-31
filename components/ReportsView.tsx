@@ -370,7 +370,7 @@ export const ReportsView: React.FC = () => {
                                     <div className="flex items-center gap-1.5 mt-0.5">
                                         <span className="text-[10px] font-medium text-slate-400">{tx.date}</span>
                                         <div className="size-1 bg-slate-200 rounded-full"></div>
-                                        <span className="text-[10px] font-medium text-slate-400 capitalize">{tx.category === 'service' ? 'servicio' : tx.category === 'tip' ? 'propina' : 'insumo'}</span>
+                                        <span className="text-[10px] font-medium text-slate-400 capitalize">{tx.category === 'service' ? 'servicio' : tx.category === 'tip' ? 'propina' : (tx.title && tx.title.includes('Aporte a Ahorro')) ? 'ahorro' : 'insumo'}</span>
                                     </div>
                                 </div>
                             </div>

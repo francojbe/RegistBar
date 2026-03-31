@@ -15,9 +15,9 @@ RegistBar es un ERP/Fintech para barberos que permite:
 
 ### A. Registro de Servicio (Aha! Moment)
 **Objetivo:** Verificar que el registro de una venta sea fluido y preciso.
-*   **Prueba:** Registrar un servicio de $15,000 con comisión del 40%.
+*   **Prueba:** Registrar un servicio de $15,000 con la comisión configurada en el perfil (ej: 30% o 40%).
 *   **Resultado Esperado:** 
-    *   Ingreso Líquido: $9,000.
+    *   Ingreso Líquido: Calculado según la tasa del perfil (ej: para 30% neto es $10,500).
     *   Retención (13.75%): Calculada correctamente sobre el monto líquido.
     *   Sincronización instantánea con el balance semanal del Home.
     *   Aparición automática del servicio en la lista de "Últimos Ingresos".
@@ -32,7 +32,7 @@ RegistBar es un ERP/Fintech para barberos que permite:
 *   **Prueba:** Agregar un "Aporte Manual" a la meta desde la tarjeta de ahorro.
 *   **Resultado Esperado:** 
     *   La barra de progreso debe avanzar. 
-    *   Debe crearse una transacción negativa tipo `expense` con el título "Aporte a Ahorro".
+    *   Debe crearse una transacción negativa tipo `expense` con el título "Aporte a Ahorro" y la categoría visual "Ahorro".
 
 ---
 
