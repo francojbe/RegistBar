@@ -67,35 +67,23 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
             // Refactored to use Fused Data (Local + Cloud)
             const fusedData = await OfflineService.getFusedTransactions(user.id);
             
-            const allFormatted = fusedData.map((t: any) => ({
-                id: t.id,
-                title: t.title,
-                date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' }),
-                time: new Date(t.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
-                amount: t.amount,
-                type: t.type,
-                category: t.category,
-                icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : (t.title && t.title.includes('Aporte a Ahorro')) ? 'savings' : 'shopping_bag',
-                rawDate: t.date,
-                isOfflinePending: t.isOfflinePending
-            }));
+            setAllTransactions(fusedData);
 
             // Filter today's data using Chile timezone specifically
             const todayChileStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
             const todayTx = fusedData.filter((t: any) =>
-                new Date(t.date).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }) === todayChileStr
+                new Date(t.rawDate || t.date).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }) === todayChileStr
             );
 
             const balance = todayTx.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
             const services = todayTx.filter((t: any) => t.category === 'service').length;
 
-            setAllTransactions(allFormatted);
             setDailyTotal(balance);
             setServiceCount(services);
 
             // Update Cache
             localStorage.setItem('dashboard_cache', JSON.stringify({
-                transactions: allFormatted,
+                transactions: fusedData,
                 dailyTotal: balance,
                 serviceCount: services,
                 timestamp: new Date().getTime()

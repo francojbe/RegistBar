@@ -305,7 +305,7 @@ const App: React.FC = () => {
         .single();
 
       // Use fused transactions for ALL calculations below
-      const fusedFull = await OfflineService.getFusedTransactions(user.id, txData || []);
+      const fusedFull = fused;
 
       // Recalculate Income based on Weekly Model
       const now = new Date();

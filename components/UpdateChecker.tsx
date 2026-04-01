@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { Icon } from './Icons';
 
 export const UpdateChecker: React.FC = () => {
@@ -14,6 +15,9 @@ export const UpdateChecker: React.FC = () => {
 
     const checkForUpdates = async () => {
         try {
+            // Guard against web platform
+            if (Capacitor.getPlatform() === 'web') return;
+
             // Get current app version info
             const appInfo = await App.getInfo();
             const currentVersionCode = parseInt(appInfo.build);

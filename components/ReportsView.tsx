@@ -78,31 +78,16 @@ export const ReportsView: React.FC = () => {
             
             // Filter by selected month/year
             const monthData = fusedData.filter(t => {
-                const txDate = new Date(t.date);
+                const txDate = new Date(t.rawDate);
                 return txDate.getFullYear() === selectedDate.getFullYear() && 
                        txDate.getMonth() === selectedDate.getMonth();
             });
 
-            const formatted = monthData.map((t: any) => ({
-                id: t.id,
-                title: t.title,
-                date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: '2-digit', month: 'short' }),
-                time: new Date(t.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
-                amount: t.amount,
-                type: t.type,
-                category: t.category,
-                icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : (t.title && t.title.includes('Aporte a Ahorro')) ? 'savings' : 'shopping_bag',
-                rawDate: t.date,
-                gross_amount: t.gross_amount,
-                commission_amount: t.commission_amount,
-                isOfflinePending: t.isOfflinePending
-            }));
-
-            setTransactions(formatted);
+            setTransactions(monthData);
 
             // SAVE TO CACHE
             localStorage.setItem('reports_cache_v1', JSON.stringify({
-                transactions: formatted,
+                transactions: monthData,
                 timestamp: new Date().getTime(),
                 month: selectedDate.getMonth(),
                 year: selectedDate.getFullYear()

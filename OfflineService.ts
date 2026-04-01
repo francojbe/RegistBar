@@ -12,7 +12,7 @@ const formatTransaction = (t: any): Transaction => ({
     amount: t.amount,
     type: t.type,
     category: t.category,
-    icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : 'shopping_bag',
+    icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : (t.title && t.title.includes('Aporte a Ahorro')) ? 'savings' : 'shopping_bag',
     rawDate: t.date,
     gross_amount: t.gross_amount,
     commission_amount: t.commission_amount
@@ -86,9 +86,12 @@ export const OfflineService = {
 
     /**
      * Gets transactions, prioritizing local unsynced ones + cloud ones.
+     * If cloudTransactions is not provided, it fetches from Supabase.
      */
-    async getFusedTransactions(userId: string, cloudTransactions: Transaction[]): Promise<Transaction[]> {
-        // Fetch items that ARE NOT in Supabase yet
+    async getFusedTransactions(userId: string, cloudTransactions?: Transaction[]): Promise<Transaction[]> {
+        let fetchedCloud: Transaction[] = [];
+
+        // Fetch items that ARE NOT in Supabase yet (local pending)
         const pending = await db.transactions
             .where({ user_id: userId, is_synced: 0 })
             .toArray();
@@ -98,7 +101,25 @@ export const OfflineService = {
             return { ...f, isOfflinePending: true }; // Label for UI
         });
 
+        if (cloudTransactions !== undefined) {
+             fetchedCloud = cloudTransactions;
+        } else {
+             try {
+                 const { data, error } = await supabase
+                     .from('transactions')
+                     .select('*')
+                     .eq('user_id', userId)
+                     .order('date', { ascending: false });
+                 
+                 if (!error && data) {
+                     fetchedCloud = data.map(formatTransaction);
+                 }
+             } catch (error) {
+                 console.error('getFusedTransactions: Error fetching from cloud', error);
+             }
+        }
+
         // Current simple logic: Append pending at the top
-        return [...pendingMapped, ...cloudTransactions];
+        return [...pendingMapped, ...fetchedCloud];
     }
 };
