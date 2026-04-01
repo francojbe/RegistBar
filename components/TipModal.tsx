@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
+import { OfflineService } from '../OfflineService';
 
 interface TipModalProps {
     onClose: () => void;
@@ -78,18 +79,23 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
 
     const handleSave = async () => {
         if (!user) return;
+        const amount = parseInt(amountStr || '0', 10);
+        if (amount <= 0) {
+            showToast('Ingresa un monto válido', 'error');
+            return;
+        }
+
         setLoading(true);
 
-        const amount = parseInt(amountStr || '0', 10);
-
-        const { error } = await supabase.from('transactions').insert({
-            user_id: user.id,
+        const payload = {
             title: 'Propina',
             amount: amount,
             type: 'income',
             category: 'tip',
             date: new Date(selectedDate).toISOString()
-        });
+        };
+
+        const { error, offline } = await OfflineService.saveTransaction(user.id, payload);
 
         setLoading(false);
 
@@ -97,9 +103,12 @@ export const TipModal: React.FC<TipModalProps> = ({ onClose }) => {
             console.error('Error saving tip:', error);
             showToast('Error al guardar propina', 'error');
         } else {
-            showToast('¡Propina registrada correctamente!', 'success');
+            showToast(offline ? 'Propina guardada localmente' : '¡Propina registrada correctamente!', 'success');
             onClose();
-            window.location.reload();
+            // Local reload for now until we have global state refresh
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
         }
     };
 

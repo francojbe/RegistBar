@@ -44,7 +44,7 @@ export const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ userDa
         },
         {
             id: 'advisor-chat',
-            label: 'Habla con tu Asesor IA',
+            label: 'Habla con tu Aliado Inteligente',
             description: 'Obtén consejos financieros personalizados.',
             isCompleted: false, // This could be synced with DB later
             action: () => onAction('advisor'),

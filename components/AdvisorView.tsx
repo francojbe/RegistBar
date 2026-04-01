@@ -18,7 +18,7 @@ export const AdvisorView: React.FC = () => {
         {
             id: 'welcome',
             role: 'assistant',
-            text: '👋 Hola! Soy tu Asesor Financiero IA. Analizo tus transacciones y metas para darte consejos personalizados. ¿En qué te ayudo hoy?',
+            text: '👋 ¡Hola! Soy tu Aliado Inteligente. Analizo tus transacciones para darte los mejores consejos financieros y ayudarte a crecer. ¿En qué puedo apoyarte hoy?',
             timestamp: new Date()
         }
     ]);
@@ -130,7 +130,7 @@ export const AdvisorView: React.FC = () => {
                     <Icon name="auto_awesome" size={24} />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-slate-900">Asesor Inteligente</h2>
+                    <h2 className="text-xl font-bold text-slate-900">Aliado Inteligente</h2>
                     <p className="text-xs text-green-600 font-bold flex items-center gap-1">
                         <span className="size-2 bg-green-500 rounded-full animate-pulse"></span>
                         En línea

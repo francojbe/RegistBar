@@ -30,6 +30,7 @@ import { UpdateChecker } from './components/UpdateChecker';
 import { App as CapacitorApp } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
+import { OfflineService } from './OfflineService';
 
 const App: React.FC = () => {
   const { user, loading, signOut } = useAuth();
@@ -232,6 +233,20 @@ const App: React.FC = () => {
     }
   }, [user]);
 
+  // Sync Offline Data on Mount
+  React.useEffect(() => {
+    if (user) {
+      OfflineService.syncPending(user.id);
+      
+      // Optional: Setup a focal point for recurring sync
+      const interval = setInterval(() => {
+        OfflineService.syncPending(user.id);
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   // Fetch Data function to be reused
   const fetchData = async () => {
     if (!user || isPasswordReset) return;
@@ -259,7 +274,10 @@ const App: React.FC = () => {
         rawDate: t.date
       }));
 
-      setRecentTransactions(transactions.slice(0, 5)); // Show only last 5 in list
+      // 1.5 Fuse with local pending transactions
+      const fused = await OfflineService.getFusedTransactions(user.id, transactions);
+
+      setRecentTransactions(fused.slice(0, 5)); // Show only last 5 in list
 
       // 2. Fetch Goals
       const { data: goalData, error: goalError } = await supabase
@@ -286,6 +304,9 @@ const App: React.FC = () => {
         .eq('id', user.id)
         .single();
 
+      // Use fused transactions for ALL calculations below
+      const fusedFull = await OfflineService.getFusedTransactions(user.id, txData || []);
+
       // Recalculate Income based on Weekly Model
       const now = new Date();
 
@@ -299,8 +320,8 @@ const App: React.FC = () => {
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
 
-      const weeklyTransactions = (txData || []).filter((t: any) => {
-        const d = new Date(t.date);
+      const weeklyTransactions = fusedFull.filter((t: any) => {
+        const d = new Date(t.rawDate);
         return d >= startOfWeek && d <= endOfWeek;
       });
 
@@ -317,9 +338,6 @@ const App: React.FC = () => {
       const weeklySavings = weeklyTransactions
         .filter((t: any) => t.title && t.title.includes('Aporte a Ahorro'))
         .reduce((sum: number, t: any) => sum + (Math.abs(Number(t.amount)) || 0), 0);
-
-      // 1. Calculate Production Net is NOT used for the small number anymore.
-      // Small number ("Ventas Totales") = weeklyGross
 
       // 2. Calculate Final Balance (Gross - Rent - Supplies - Savings)
       let finalBalance = weeklyGross;
@@ -343,8 +361,8 @@ const App: React.FC = () => {
 
       // Average Ticket (Weekly) -> Now repurposed as Monthly Balance
       // Calculate Monthly Gross for KPI
-      const monthlyTransactions = (txData || []).filter((t: any) => {
-        const d = new Date(t.date);
+      const monthlyTransactions = fusedFull.filter((t: any) => {
+        const d = new Date(t.rawDate);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
 

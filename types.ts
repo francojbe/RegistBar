@@ -10,6 +10,7 @@ export interface Transaction {
   rawDate: string; // Original ISO date
   gross_amount?: number;
   commission_amount?: number;
+  isOfflinePending?: boolean;
 }
 
 export interface KPI {

@@ -10,6 +10,7 @@ import { supabase } from '../supabaseClient';
 
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
+import { OfflineService } from '../OfflineService';
 
 interface IncomeViewProps {
     onGoToReports: () => void;
@@ -62,15 +63,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
     const fetchDailyData = async () => {
         if (!user) return;
 
-        // Background Fetch
-        const { data, error } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('date', { ascending: false });
-
-        if (data) {
-            const allFormatted = data.map((t: any) => ({
+        try {
+            // Refactored to use Fused Data (Local + Cloud)
+            const fusedData = await OfflineService.getFusedTransactions(user.id);
+            
+            const allFormatted = fusedData.map((t: any) => ({
                 id: t.id,
                 title: t.title,
                 date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' }),
@@ -79,20 +76,18 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                 type: t.type,
                 category: t.category,
                 icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : (t.title && t.title.includes('Aporte a Ahorro')) ? 'savings' : 'shopping_bag',
-                rawDate: t.date // Store ISO date for editing
+                rawDate: t.date,
+                isOfflinePending: t.isOfflinePending
             }));
 
             // Filter today's data using Chile timezone specifically
             const todayChileStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
-            const todayTx = data.filter((t: any) =>
+            const todayTx = fusedData.filter((t: any) =>
                 new Date(t.date).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }) === todayChileStr
             );
 
             const balance = todayTx.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
             const services = todayTx.filter((t: any) => t.category === 'service').length;
-
-            // Only update if changed (Simple JSON stringify comparison can be expensive but for small datasets ok, 
-            // or just rely on React diffing. We will just update and trust React)
 
             setAllTransactions(allFormatted);
             setDailyTotal(balance);
@@ -105,6 +100,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                 serviceCount: services,
                 timestamp: new Date().getTime()
             }));
+        } catch (error) {
+            console.error("Error fetching daily data:", error);
         }
     };
 
@@ -387,9 +384,16 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <span className={`text-sm font-bold font-mono ${tx.icon === 'shopping_bag' ? 'text-red-500' : 'text-slate-900'}`}>
-                                        {tx.icon === 'shopping_bag' ? '-' : '+'}{format(Math.abs(tx.amount))}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {tx.isOfflinePending && (
+                                            <div className="flex items-center text-primary/50 animate-pulse" title="Sincronizando...">
+                                                <Icon name="cloud_upload" size={16} />
+                                            </div>
+                                        )}
+                                        <span className={`text-sm font-bold font-mono ${tx.icon === 'shopping_bag' ? 'text-red-500' : 'text-slate-900'}`}>
+                                            {tx.icon === 'shopping_bag' ? '-' : '+'}{format(Math.abs(tx.amount))}
+                                        </span>
+                                    </div>
                                 </motion.div>
                             </div>
                         ))}

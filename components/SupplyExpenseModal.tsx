@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
+import { OfflineService } from '../OfflineService';
 
 interface SupplyExpenseModalProps {
     onClose: () => void;
@@ -44,19 +45,20 @@ export const SupplyExpenseModal: React.FC<SupplyExpenseModalProps> = ({ onClose 
     const [selectedDate, setSelectedDate] = useState<string>(() => getChileCurrentTime());
 
     const handleSave = async () => {
-        if (!user) return;
+        if (!user || !amount) return;
         setLoading(true);
 
         const finalAmount = -Math.abs(amount); // Ensure it's negative
 
-        const { error } = await supabase.from('transactions').insert({
-            user_id: user.id,
+        const payload = {
             title: description || 'Gasto Insumo',
             amount: finalAmount,
             type: 'expense',
             category: 'supply',
             date: new Date(selectedDate).toISOString()
-        });
+        };
+
+        const { error, offline } = await OfflineService.saveTransaction(user.id, payload);
 
         setLoading(false);
 
@@ -64,9 +66,11 @@ export const SupplyExpenseModal: React.FC<SupplyExpenseModalProps> = ({ onClose 
             console.error('Error saving expense:', error);
             showToast('Error al guardar gasto', 'error');
         } else {
-            showToast('¡Gasto registrado correctamente!', 'success');
+            showToast(offline ? 'Gasto guardado localmente' : '¡Gasto registrado correctamente!', 'success');
             onClose();
-            window.location.reload();
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
         }
     };
 

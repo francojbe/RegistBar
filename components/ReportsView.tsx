@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { generateMonthlyReportPDF } from '../utils/pdfGenerator';
 import { motion } from 'framer-motion';
 import { useCurrency } from '../utils/currency';
+import { OfflineService } from '../OfflineService';
 
 export const ReportsView: React.FC = () => {
     const { user } = useAuth();
@@ -72,17 +73,17 @@ export const ReportsView: React.FC = () => {
         const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
         try {
-            const { data, error } = await supabase
-                .from('transactions')
-                .select('*')
-                .eq('user_id', user.id)
-                .gte('date', startOfMonth)
-                .lte('date', endOfMonth)
-                .order('date', { ascending: false });
+            // Refactored to use Fused Data (Local + Cloud)
+            const fusedData = await OfflineService.getFusedTransactions(user.id);
+            
+            // Filter by selected month/year
+            const monthData = fusedData.filter(t => {
+                const txDate = new Date(t.date);
+                return txDate.getFullYear() === selectedDate.getFullYear() && 
+                       txDate.getMonth() === selectedDate.getMonth();
+            });
 
-            if (error) throw error;
-
-            const formatted = (data || []).map((t: any) => ({
+            const formatted = monthData.map((t: any) => ({
                 id: t.id,
                 title: t.title,
                 date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: '2-digit', month: 'short' }),
@@ -92,9 +93,9 @@ export const ReportsView: React.FC = () => {
                 category: t.category,
                 icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : (t.title && t.title.includes('Aporte a Ahorro')) ? 'savings' : 'shopping_bag',
                 rawDate: t.date,
-                // Pass through new fields if they exist in DB types, currently using 'any' to map from DB
                 gross_amount: t.gross_amount,
-                commission_amount: t.commission_amount
+                commission_amount: t.commission_amount,
+                isOfflinePending: t.isOfflinePending
             }));
 
             setTransactions(formatted);
@@ -103,7 +104,7 @@ export const ReportsView: React.FC = () => {
             localStorage.setItem('reports_cache_v1', JSON.stringify({
                 transactions: formatted,
                 timestamp: new Date().getTime(),
-                month: selectedDate.getMonth(), // Store month info to know if we need invalidation (optional, we just show stale first)
+                month: selectedDate.getMonth(),
                 year: selectedDate.getFullYear()
             }));
 

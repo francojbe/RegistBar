@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
+import { OfflineService } from '../OfflineService';
 
 interface NewServiceModalProps {
     onClose: () => void;
@@ -77,11 +78,13 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
     const retention = Math.round(liquidIncome * 0.1375);
 
     const handleSave = async () => {
-        if (!user) return;
+        if (!user || !totalPrice || !serviceName) {
+            showToast('Por favor completa los campos', 'error');
+            return;
+        }
         setLoading(true);
 
-        const { error } = await supabase.from('transactions').insert({
-            user_id: user.id,
+        const payload = {
             title: serviceName,
             amount: liquidIncome,
             type: 'income',
@@ -90,7 +93,9 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
             gross_amount: totalPrice,
             commission_amount: commissionAmount,
             retention_amount: retention
-        });
+        };
+
+        const { error, offline } = await OfflineService.saveTransaction(user.id, payload);
 
         setLoading(false);
 
@@ -98,7 +103,7 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
             console.error('Error saving service:', error);
             showToast('Error al guardar el servicio', 'error');
         } else {
-            showToast('¡Servicio registrado con éxito!', 'success');
+            showToast(offline ? 'Guardado localmente (Sin conexión)' : '¡Servicio registrado con éxito!', 'success');
             
             // Request push permissions in a moment of 'success'
             if (onRequestPush) {
@@ -106,10 +111,12 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
             }
 
             onClose();
-            // Using a timeout to allow the toast and potential push modal to be seen
+            // We should avoid full reload if possible, but for now we keep it simple 
+            // or trigger a refresh via callback. 
+            // Let's use a smaller delay if we must reload, or better, pass a refresh prop.
             setTimeout(() => {
                 window.location.reload();
-            }, 1000);
+            }, 800);
         }
     };
 

@@ -348,7 +348,15 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions
               <Icon name={tx.icon} size={20} />
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-bold text-slate-900 leading-tight group-hover:text-primary transition-colors">{tx.title}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-slate-900 leading-tight group-hover:text-primary transition-colors">{tx.title}</span>
+                {tx.isOfflinePending && (
+                   <span className="flex items-center gap-1 text-[10px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                     <Icon name="cloud_upload" size={10} className="animate-pulse" />
+                     Cola
+                   </span>
+                )}
+              </div>
               <span className="text-xs font-medium text-slate-400">{tx.date} • {tx.time}</span>
             </div>
           </div>

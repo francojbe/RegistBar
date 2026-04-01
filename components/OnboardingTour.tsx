@@ -61,8 +61,8 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onComplete }) =>
                     {
                         element: '[data-tour="advisor-tab"]',
                         popover: {
-                            title: 'Asesor IA 🤖✨',
-                            description: 'Tu contador inteligente. Pregúntale sobre tus finanzas, obtén consejos personalizados y análisis detallados.',
+                            title: 'Aliado Inteligente 🤖✨',
+                            description: 'Tu consultor de confianza. Pregúntale sobre tus finanzas, obtén consejos personalizados y análisis detallados.',
                             side: 'top',
                             align: 'center'
                         }
