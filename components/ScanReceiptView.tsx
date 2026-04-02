@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { SubscriptionPaywall } from './SubscriptionPaywall';
+import { OfflineService } from '../OfflineService';
 
 interface ScanReceiptViewProps {
     onClose: () => void;
@@ -245,20 +246,26 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                 return localDate.toISOString();
             };
 
-            const { error } = await supabase.from('transactions').insert({
-                user_id: user.id,
+            const payload = {
                 title: merchant || (transactionType === 'expense' ? 'Gasto Escaneado' : 'Ingreso Escaneado'),
                 amount: finalAmount,
                 type: transactionType,
                 category: finalCategory,
                 date: getLocalDateISO(),
                 receipt_url: receiptUrl
-            });
+            };
+
+            const { error, offline } = await OfflineService.saveTransaction(user.id, payload);
 
             if (error) throw error;
-            showToast('Guardado correctamente', 'success');
+            
+            showToast(offline ? 'Guardado localmente (Sin conexión)' : 'Guardado correctamente', 'success');
             onClose();
-            window.location.reload();
+            
+            // Trigger refresh
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
 
         } catch (e) {
             console.error(e);

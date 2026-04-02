@@ -23,20 +23,30 @@ export const OfflineService = {
      * Saves a transaction locally and attempts to sync it.
      */
     async saveTransaction(userId: string, payload: any) {
-        // 1. Add to local queue (Dexie)
-        const localId = await db.transactions.add({
-            user_id: userId,
-            is_synced: 0,
-            payload: payload,
-            created_at: Date.now()
-        });
+        // Generate a consistent ID for both local and cloud
+        const id = crypto.randomUUID();
+        const payloadWithId = { ...payload, id };
+
+        let localId;
+        try {
+            // 1. Add to local queue (Dexie) - This is mandatory for offline-first
+            localId = await db.transactions.add({
+                user_id: userId,
+                is_synced: 0,
+                payload: payloadWithId,
+                created_at: Date.now()
+            });
+        } catch (localErr) {
+            console.error('Critical: Failed to save to local DB:', localErr);
+            return { data: null, error: localErr };
+        }
 
         // 2. Try to sync immediately
         try {
             const { data, error } = await supabase
                 .from('transactions')
                 .insert({
-                  ...payload,
+                  ...payloadWithId,
                   user_id: userId
                 })
                 .select()
@@ -45,10 +55,16 @@ export const OfflineService = {
             if (!error && data) {
                 // If success, update local record as synced
                 await db.transactions.update(localId, { is_synced: 1 });
+                return { data, error: null, offline: false };
             }
-            return { data, error };
+            
+            // If Supabase returned an error (e.g. network or timeout), we don't treat it as a FAILURE 
+            // for the user because we already saved it locally.
+            console.warn('Supabase sync failed, item remains in local queue:', error);
+            return { data: null, error: null, offline: true };
+            
         } catch (err) {
-            console.warn('Network error while syncing, will sync later.', err);
+            console.warn('Network exception while syncing, will sync later.', err);
             return { data: null, error: null, offline: true };
         }
     },
@@ -74,11 +90,15 @@ export const OfflineService = {
                       user_id: userId
                     });
 
-                if (!error) {
+                // If success OR duplicate key error (means it's already there), mark as synced
+                if (!error || error.code === '23505') { 
                     await db.transactions.update(item.id!, { is_synced: 1 });
+                } else {
+                    console.error('Supabase sync error:', error);
+                    break; // Stop sync on other errors (like connection lost again)
                 }
             } catch (err) {
-                console.error('Individual sync failure:', err);
+                console.error('Individual sync exception:', err);
                 break; // Stop if network is still down
             }
         }
