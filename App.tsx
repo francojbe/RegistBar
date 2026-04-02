@@ -20,6 +20,7 @@ import { NewServiceModal } from './components/NewServiceModal';
 import { SupplyExpenseModal } from './components/SupplyExpenseModal';
 import { OnboardingTour } from './components/OnboardingTour';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
+import { ProfilePhotoModal } from './components/ProfilePhotoModal';
 
 import { NotificationsModal } from './components/NotificationsModal';
 import { NotificationBell } from './components/NotificationBell';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   const [showNewService, setShowNewService] = useState(false);
   const [showSupplyExpense, setShowSupplyExpense] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(() => {
     // Persist recovery state across re-renders
     return sessionStorage.getItem('recovery_mode') === 'true';
@@ -486,9 +488,12 @@ const App: React.FC = () => {
         {activeTab === Tab.Home && (
           <header className="relative z-20 flex items-center justify-between px-6 py-6 bg-transparent transition-colors">
             <div className="flex items-center gap-3">
-              <div className="relative group cursor-pointer transition-transform active:scale-95">
+              <div 
+                className="relative group cursor-pointer transition-transform active:scale-90 hover:scale-105"
+                onClick={() => setShowProfilePhoto(true)}
+              >
                 <div
-                  className="bg-center bg-no-repeat bg-cover rounded-full size-12 ring-2 ring-white shadow-sm"
+                  className="bg-center bg-no-repeat bg-cover rounded-full size-12 ring-2 ring-white shadow-md border-2 border-slate-100 transition-shadow"
                   style={{ backgroundImage: `url("${user.user_metadata.avatar_url || 'https://ui-avatars.com/api/?name=User&background=random'}")` }}
                 ></div>
                 {/* Status indicator */}
@@ -518,6 +523,14 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Profile Photo Modal */}
+        <ProfilePhotoModal 
+          isOpen={showProfilePhoto} 
+          onClose={() => setShowProfilePhoto(false)} 
+          currentAvatarUrl={user?.user_metadata?.avatar_url}
+          userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || "Usuario"}
+        />
 
         {/* Main Content */}
         <main className="flex flex-col gap-6 px-4 pt-2 pb-32">
