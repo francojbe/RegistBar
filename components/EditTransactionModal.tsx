@@ -27,19 +27,12 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ tran
     const [category, setCategory] = useState(transaction.category);
     const [date, setDate] = useState(() => {
         const d = new Date(transaction.rawDate);
-        // Correctly format for datetime-local input in YYYY-MM-DDTHH:mm using local timezone
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
+        return d.toISOString().slice(0, 16);
     });
     
     // For services, we track the gross/commission
-    // Defensive: if gross_amount is missing for a service, fallback to amount
-    const [grossAmount, setGrossAmount] = useState<string>(String(transaction.gross_amount || Math.abs(transaction.amount) || 0));
-    const [liquidAmount, setLiquidAmount] = useState<string>(String(Math.abs(transaction.amount) || 0));
+    const [grossAmount, setGrossAmount] = useState<string>(String(transaction.gross_amount || transaction.amount || 0));
+    const [liquidAmount, setLiquidAmount] = useState<string>(String(transaction.amount || 0));
     
     const [commissionRate, setCommissionRate] = useState<number>(0);
     const [expenseModel, setExpenseModel] = useState<'commission' | 'rent'>('commission');

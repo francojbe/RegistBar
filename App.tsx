@@ -269,10 +269,21 @@ const App: React.FC = () => {
       console.error('Error fetching transactions:', txError);
     } else {
       // Process Transactions
-      const rawTransactions: Transaction[] = (txData || []).map(OfflineService.formatTransaction);
-
+      const transactions: Transaction[] = (txData || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' }),
+        time: new Date(t.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
+        amount: t.amount,
+        type: t.type,
+        category: t.category,
+        icon: t.category === 'service' ? 'content_cut' : t.category === 'tip' ? 'savings' : 'shopping_bag',
+        rawDate: t.date,
+        gross_amount: t.gross_amount // Adding this back simply!
+      }));
+ 
       // 1.5 Fuse with local pending transactions
-      const fused = await OfflineService.getFusedTransactions(user.id, rawTransactions);
+      const fused = await OfflineService.getFusedTransactions(user.id, transactions);
 
       setRecentTransactions(fused.slice(0, 5)); // Show only last 5 in list
 
