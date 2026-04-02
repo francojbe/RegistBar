@@ -15,7 +15,7 @@ const generateUUID = () => {
 };
 
 // Utility for formatting
-const formatTransaction = (t: any): Transaction => ({
+export const formatTransaction = (t: any): Transaction => ({
     id: t.id,
     title: t.title,
     // es-CL Chilean date formatting - Ensuring we treat as local/Santiago
