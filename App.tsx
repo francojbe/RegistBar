@@ -32,6 +32,9 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { OfflineService } from './OfflineService';
+import { formatInTimeZone, toDate } from 'date-fns-tz';
+
+const SANTIAGO_TZ = 'America/Santiago';
 
 const App: React.FC = () => {
   const { user, loading, signOut } = useAuth();
@@ -310,14 +313,16 @@ const App: React.FC = () => {
       const fusedFull = fused;
 
       // Recalculate Income based on Weekly Model
-      const today = new Date();
-
-      // Get Start of Week (Monday)
-      const currentDay = today.getDay(); // 0 (Sun) to 6 (Sat)
-      const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1); // adjust when day is sunday
+      // Use Santiago time for comparison to avoid UTC month-boundary bugs
+      const todayISO = formatInTimeZone(new Date(), SANTIAGO_TZ, 'yyyy-MM-dd');
       
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(diff);
+      // Get Start of week based on Santiago Time
+      const nowAtSantiago = toDate(new Date(), { timeZone: SANTIAGO_TZ });
+      const dayOfWeek = nowAtSantiago.getDay(); // 0-6
+      const diffDay = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust Monday as start
+      
+      const startOfWeek = new Date(nowAtSantiago);
+      startOfWeek.setDate(nowAtSantiago.getDate() + diffDay);
       startOfWeek.setHours(0, 0, 0, 0);
 
       const endOfWeek = new Date(startOfWeek);
@@ -325,8 +330,10 @@ const App: React.FC = () => {
       endOfWeek.setHours(23, 59, 59, 999);
 
       const weeklyTransactions = fusedFull.filter((t: any) => {
-        const d = new Date(t.rawDate);
-        return d >= startOfWeek && d <= endOfWeek;
+        // Parse rawDate into Santiago time
+        const txDateStr = formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM-dd HH:mm:ss');
+        const txDate = toDate(txDateStr, { timeZone: SANTIAGO_TZ });
+        return txDate >= startOfWeek && txDate <= endOfWeek;
       });
 
       const weeklyGross = weeklyTransactions
@@ -365,9 +372,11 @@ const App: React.FC = () => {
 
       // Average Ticket (Weekly) -> Now repurposed as Monthly Balance
       // Calculate Monthly Gross for KPI
+      // Calculate Monthly Gross for KPI using Santiago stable months
       const monthlyTransactions = fusedFull.filter((t: any) => {
-        const d = new Date(t.rawDate);
-        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        const txMonthStr = formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM');
+        const currentMonthStr = formatInTimeZone(new Date(), SANTIAGO_TZ, 'yyyy-MM');
+        return txMonthStr === currentMonthStr;
       });
 
       const monthlyGross = monthlyTransactions

@@ -4,10 +4,13 @@ import { Transaction } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { formatInTimeZone } from 'date-fns-tz';
 import { generateMonthlyReportPDF } from '../utils/pdfGenerator';
 import { motion } from 'framer-motion';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
+
+const SANTIAGO_TZ = 'America/Santiago';
 
 export const ReportsView: React.FC = () => {
     const { user } = useAuth();
@@ -76,11 +79,11 @@ export const ReportsView: React.FC = () => {
             // Refactored to use Fused Data (Local + Cloud)
             const fusedData = await OfflineService.getFusedTransactions(user.id);
             
-            // Filter by selected month/year
+            // Filter by selected month/year using Santiago stable dates
             const monthData = fusedData.filter(t => {
-                const txDate = new Date(t.rawDate);
-                return txDate.getFullYear() === selectedDate.getFullYear() && 
-                       txDate.getMonth() === selectedDate.getMonth();
+                const txMonthStr = formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM');
+                const selectedMonthStr = formatInTimeZone(selectedDate, SANTIAGO_TZ, 'yyyy-MM');
+                return txMonthStr === selectedMonthStr;
             });
 
             setTransactions(monthData);

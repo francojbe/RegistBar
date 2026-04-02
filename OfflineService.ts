@@ -2,11 +2,23 @@ import { db, LocalTransaction } from './db';
 import { supabase } from './supabaseClient';
 import { Transaction } from './types';
 
+// Stable UUID fallback for non-secure (HTTP) or older environments
+const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Standard RFC4122 v4 UUID fallback
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
 // Utility for formatting
 const formatTransaction = (t: any): Transaction => ({
     id: t.id,
     title: t.title,
-    // es-CL Chilean date formatting
+    // es-CL Chilean date formatting - Ensuring we treat as local/Santiago
     date: new Date(t.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' }),
     time: new Date(t.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
     amount: t.amount,
@@ -24,7 +36,7 @@ export const OfflineService = {
      */
     async saveTransaction(userId: string, payload: any) {
         // Generate a consistent ID for both local and cloud
-        const id = crypto.randomUUID();
+        const id = generateUUID();
         const payloadWithId = { ...payload, id };
 
         let localId;
@@ -111,14 +123,14 @@ export const OfflineService = {
     async getFusedTransactions(userId: string, cloudTransactions?: Transaction[]): Promise<Transaction[]> {
         let fetchedCloud: Transaction[] = [];
 
-        // Fetch items that ARE NOT in Supabase yet (local pending)
-        const pending = await db.transactions
-            .where({ user_id: userId, is_synced: 0 })
+        // Fetch ALL local items from Dexie to handle race status between local sync and cloud refresh
+        const allLocal = await db.transactions
+            .where({ user_id: userId })
             .toArray();
 
-        const pendingMapped: Transaction[] = pending.map(p => {
+        const localMapped: Transaction[] = allLocal.map(p => {
             const f = formatTransaction(p.payload);
-            return { ...f, isOfflinePending: true }; // Label for UI
+            return { ...f, isOfflinePending: p.is_synced === 0 }; // Label for UI if still pending
         });
 
         if (cloudTransactions !== undefined) {
@@ -139,7 +151,16 @@ export const OfflineService = {
              }
         }
 
-        // Current simple logic: Append pending at the top
-        return [...pendingMapped, ...fetchedCloud];
+        // DE-DUPLICATION LOGIC (VITAL): 
+        // We prioritize Cloud data, but keep Local data that HASN'T reached the cloud yet.
+        // Even if marked as is_synced=1, if it's NOT in fetchedCloud, we show the local copy.
+        const cloudIdSet = new Set(fetchedCloud.map(t => t.id));
+        const missingLocals = localMapped.filter(l => !cloudIdSet.has(l.id));
+
+        // Format: All Missing Locals + All Cloud
+        const allFused = [...missingLocals, ...fetchedCloud];
+
+        // Final sort by date (raw date) to ensure correct timeline
+        return allFused.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
     }
 };

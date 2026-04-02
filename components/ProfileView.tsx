@@ -6,13 +6,11 @@ import { NotificationsModal } from './NotificationsModal';
 import { SupportModal } from './SupportModal';
 import { AdminView } from './AdminView';
 import { NativeBiometric } from 'capacitor-native-biometric';
-import heic2any from 'heic2any';
+import { ProfilePhotoModal } from './ProfilePhotoModal';
 
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import Cropper from 'react-easy-crop';
-import getCroppedImg from '../utils/cropImage';
 
 export const ProfileView: React.FC = () => {
     const { user, signOut } = useAuth();
@@ -39,6 +37,7 @@ export const ProfileView: React.FC = () => {
     const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
     const [showBiometricModal, setShowBiometricModal] = useState(false);
     const [biometricPassword, setBiometricPassword] = useState('');
+    const [showPhotoModal, setShowPhotoModal] = useState(false);
 
     // Temp state for editing
     const [editGoalName, setEditGoalName] = useState("");
@@ -143,110 +142,9 @@ export const ProfileView: React.FC = () => {
 
     const [imageLoading, setImageLoading] = useState(false);
 
-    // Crop State
-    const [croppingImageSrc, setCroppingImageSrc] = useState<string | null>(null);
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
-    const [rotation, setRotation] = useState(0);
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-
     // Helper to compress image (Only used if NOT cropping, or double compression)
     // We'll simplify this now since the Cropper logic handles a lot
 
-    const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
-        setCroppedAreaPixels(croppedAreaPixels);
-    };
-
-    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (!event.target.files || event.target.files.length === 0) return;
-        const file = event.target.files[0];
-
-        // 1. Convert HEIC if needed
-        let sourceFile: Blob = file;
-        if (file.type.toLowerCase().includes('heic') || file.name.toLowerCase().endsWith('.heic')) {
-            try {
-                const converted = await heic2any({ blob: file, toType: 'image/jpeg' });
-                sourceFile = Array.isArray(converted) ? converted[0] : converted;
-            } catch (e) {
-                console.error("HEIC Error", e);
-            }
-        }
-
-        // 2. Read as URL for Cropper
-        const reader = new FileReader();
-        reader.readAsDataURL(sourceFile);
-        reader.onload = () => {
-            setCroppingImageSrc(reader.result as string);
-            setZoom(1);
-            setRotation(0);
-            setCrop({ x: 0, y: 0 });
-        };
-    };
-
-    const handleCropConfirm = async () => {
-        if (!user || !croppingImageSrc || !croppedAreaPixels) {
-            console.error("Missing data for crop", { user: !!user, src: !!croppingImageSrc, pixels: !!croppedAreaPixels });
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            console.log("Starting crop process...");
-            // 1. Get Cropped Blob
-            const croppedBlob = await getCroppedImg(croppingImageSrc, croppedAreaPixels, rotation);
-            if (!croppedBlob) throw new Error("Error creating cropped image blob");
-            console.log("Blob created", croppedBlob.size);
-
-            // 2. Upload
-            const path = `${user?.id}/avatar.jpg`;
-
-            // Try to remove old one just in case upsert is being stubborn
-            // await supabase.storage.from('avatars').remove([path]); 
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(path, croppedBlob, {
-                    contentType: 'image/jpeg',
-                    upsert: true
-                });
-
-            if (uploadError) {
-                console.error("Supabase Upload Error:", uploadError);
-                throw uploadError;
-            }
-            console.log("Upload success", uploadData);
-
-            // 3. Get URL - Force new Unique ID
-            const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-            const uniqueId = new Date().getTime().toString() + Math.random().toString(36).substring(7);
-            const publicUrl = `${data.publicUrl}?t=${uniqueId}`;
-
-            console.log("New Public URL:", publicUrl);
-
-            // 4. Update Profile
-            const { error: authError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
-            if (authError) {
-                console.error("Auth Update Error:", authError);
-                throw authError;
-            }
-
-            // Update local state immediately
-            setAvatarUrl(publicUrl);
-            setCroppingImageSrc(null);
-            showToast("Imagen actualizada correctamente", "success");
-
-        } catch (e: any) {
-            console.error("CROP ERROR FULL:", e);
-            showToast(`Error al guardar: ${e.message}`, "error");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Cancel Crop
-    const handleCropCancel = () => {
-        setCroppingImageSrc(null);
-    };
 
     const handleEnableBiometric = async () => {
         if (!user || !biometricPassword) return;
@@ -391,68 +289,12 @@ export const ProfileView: React.FC = () => {
     return (
         <div className="flex flex-col gap-4 animate-fade-in-up pb-8 relative">
 
-            {/* Cropper Modal Overlay */}
-            <AnimatePresence>
-                {croppingImageSrc && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[60] bg-black flex flex-col h-screen w-screen"
-                    >
-                        {/* Header Controls */}
-                        <div className="flex justify-between items-center p-4 bg-black/50 absolute top-0 left-0 right-0 z-10">
-                            <button onClick={handleCropCancel} className="text-white p-2">
-                                <Icon name="x" size={24} />
-                            </button>
-                            <h3 className="text-white font-bold">Ajustar Foto</h3>
-                            <button onClick={handleCropConfirm} className="text-primary font-bold p-2">
-                                Guardar
-                            </button>
-                        </div>
-
-                        {/* Cropper Container - Needs explicit relative positioning and size */}
-                        <div className="relative flex-1 w-full bg-black min-h-0">
-                            <Cropper
-                                image={croppingImageSrc}
-                                crop={crop}
-                                zoom={zoom}
-                                rotation={rotation}
-                                aspect={1}
-                                onCropChange={setCrop}
-                                onCropComplete={onCropComplete}
-                                onZoomChange={setZoom}
-                                onRotationChange={setRotation}
-                                cropShape="round"
-                                showGrid={false}
-                                objectFit="contain"
-                            />
-                        </div>
-
-                        {/* Bottom Controls */}
-                        <div className="px-6 py-8 flex flex-col gap-6 bg-slate-900 pb-12">
-                            <div className="flex items-center gap-4">
-                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Alejar</span>
-                                <input
-                                    type="range"
-                                    value={zoom}
-                                    min={1}
-                                    max={3}
-                                    step={0.1}
-                                    aria-labelledby="Zoom"
-                                    onChange={(e) => setZoom(Number(e.target.value))}
-                                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                                />
-                                <span className="text-xs font-medium text-white uppercase tracking-wider">Acercar</span>
-                            </div>
-
-                            <div className="flex justify-center text-xs text-slate-400">
-                                Pellizca para zoom, arrastra para mover
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ProfilePhotoModal 
+                isOpen={showPhotoModal}
+                onClose={() => setShowPhotoModal(false)}
+                currentAvatarUrl={avatarUrl}
+                userName={userName}
+            />
 
             {/* Existing Header */}
             <header className="flex items-center justify-between py-2">
@@ -469,7 +311,10 @@ export const ProfileView: React.FC = () => {
             <div className="flex flex-col items-center gap-2 py-1">
                 <div className="relative mx-auto size-24">
                     {/* Ring and Shadow Container */}
-                    <div className="relative w-full h-full rounded-full ring-4 ring-white shadow-lg overflow-hidden bg-white">
+                    <div 
+                        className="relative w-full h-full rounded-full ring-4 ring-white shadow-lg overflow-hidden bg-white cursor-pointer active:scale-95 transition-transform"
+                        onClick={() => setShowPhotoModal(true)}
+                    >
                         <img
                             src={avatarUrl || `https://ui-avatars.com/api/?name=${userName.replace(' ', '+')}&background=random`}
                             alt="Profile"
@@ -486,21 +331,13 @@ export const ProfileView: React.FC = () => {
                         )}
                     </div>
 
-                    <label
-                        htmlFor="avatar-upload"
+                    <div
                         className="absolute bottom-0 right-0 translate-x-1 translate-y-1 bg-white p-2 rounded-full shadow-md border border-slate-200 cursor-pointer hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 flex items-center justify-center z-20"
                         title="Cambiar foto"
+                        onClick={() => setShowPhotoModal(true)}
                     >
                         <Icon name="edit" size={16} className="text-primary" />
-                        <input
-                            type="file"
-                            id="avatar-upload"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleFileSelect}
-                            disabled={isLoading}
-                        />
-                    </label>
+                    </div>
                 </div>
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-slate-900">{userName}</h2>

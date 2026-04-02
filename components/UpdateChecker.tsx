@@ -16,7 +16,7 @@ export const UpdateChecker: React.FC = () => {
     const checkForUpdates = async () => {
         try {
             // Guard against web platform
-            if (Capacitor.getPlatform() === 'web') return;
+            if (Capacitor.getPlatform() === 'web' || !Capacitor.isNativePlatform()) return;
 
             // Get current app version info
             const appInfo = await App.getInfo();
