@@ -308,12 +308,14 @@ const App: React.FC = () => {
       const fusedFull = fused;
 
       // Recalculate Income based on Weekly Model
-      const now = new Date();
+      const today = new Date();
 
       // Get Start of Week (Monday)
-      const day = now.getDay(); // 0 (Sun) to 6 (Sat)
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-      const startOfWeek = new Date(now.setDate(diff));
+      const currentDay = today.getDay(); // 0 (Sun) to 6 (Sat)
+      const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1); // adjust when day is sunday
+      
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(diff);
       startOfWeek.setHours(0, 0, 0, 0);
 
       const endOfWeek = new Date(startOfWeek);
@@ -363,7 +365,7 @@ const App: React.FC = () => {
       // Calculate Monthly Gross for KPI
       const monthlyTransactions = fusedFull.filter((t: any) => {
         const d = new Date(t.rawDate);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
       });
 
       const monthlyGross = monthlyTransactions
