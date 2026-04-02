@@ -95,15 +95,16 @@ export const OfflineService = {
 
         for (const item of pending) {
             try {
+                // Use upsert to handle both new records and updates
                 const { error } = await supabase
                     .from('transactions')
-                    .insert({
+                    .upsert({
                       ...item.payload,
                       user_id: userId
                     });
 
                 // If success OR duplicate key error (means it's already there), mark as synced
-                if (!error || error.code === '23505') { 
+                if (!error) { 
                     await db.transactions.update(item.id!, { is_synced: 1 });
                 } else {
                     console.error('Supabase sync error:', error);
@@ -113,6 +114,90 @@ export const OfflineService = {
                 console.error('Individual sync exception:', err);
                 break; // Stop if network is still down
             }
+        }
+    },
+
+    /**
+     * Updates an existing transaction locally and attempts to sync it.
+     */
+    async updateTransaction(userId: string, transactionId: string, payload: any) {
+        // 1. Update in local Dexie
+        const allLocal = await db.transactions.where({ user_id: userId }).toArray();
+        const record = allLocal.find(r => (r.payload.id || r.payload.transaction_id) === transactionId);
+
+        let localIdToUpdate;
+        if (record) {
+            localIdToUpdate = record.id;
+            await db.transactions.update(record.id!, {
+                payload: { ...payload, id: transactionId },
+                is_synced: 0 // Mark as needing sync/resync
+            });
+        } else {
+            // If somehow not found locally, add it as a pending update
+            localIdToUpdate = await db.transactions.add({
+                user_id: userId,
+                is_synced: 0,
+                payload: { ...payload, id: transactionId },
+                created_at: Date.now()
+            });
+        }
+
+        // 2. Try to sync immediately
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .upsert({
+                  ...payload,
+                  id: transactionId,
+                  user_id: userId
+                })
+                .select()
+                .single();
+
+            if (!error && data) {
+                await db.transactions.update(localIdToUpdate!, { is_synced: 1 });
+                return { data, error: null, offline: false };
+            }
+            
+            console.warn('Supabase update failed, item remains unsynced in local queue:', error);
+            return { data: null, error: null, offline: true };
+            
+        } catch (err) {
+            console.warn('Network exception while updating, will sync later.', err);
+            return { data: null, error: null, offline: true };
+        }
+    },
+
+    /**
+     * Deletes a transaction locally and on the server.
+     */
+    async deleteTransaction(userId: string, transactionId: string) {
+        // 1. Delete from local Dexie
+        const allLocal = await db.transactions.where({ user_id: userId }).toArray();
+        const record = allLocal.find(r => (r.payload.id || r.payload.transaction_id) === transactionId);
+
+        if (record) {
+            await db.transactions.delete(record.id!);
+        }
+
+        // 2. Try to sync deletion to Supabase
+        try {
+            const { error } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', transactionId)
+                .eq('user_id', userId);
+
+            if (!error) {
+                return { error: null, offline: false };
+            }
+            
+            console.warn('Supabase delete failed, but item removed locally.');
+            return { error, offline: true };
+            
+        } catch (err) {
+            console.warn('Network exception while deleting.', err);
+            return { error: err, offline: true };
         }
     },
 

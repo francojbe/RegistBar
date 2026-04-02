@@ -11,6 +11,7 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
+import { EditTransactionModal } from './EditTransactionModal';
 
 interface IncomeViewProps {
     onGoToReports: () => void;
@@ -103,32 +104,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
         setAllTransactions(prev => prev.filter(t => t.id !== tx.id));
 
         try {
-            // 1. Check if it's a Savings transaction to update the Goal
-            if (tx.title && tx.title.includes('Aporte a Ahorro')) {
-                const amountToDeduct = Math.abs(Number(tx.amount));
-
-                // Fetch current goal
-                const { data: goalData } = await supabase
-                    .from('goals')
-                    .select('id, current_amount')
-                    .eq('user_id', user.id)
-                    .single();
-
-                if (goalData) {
-                    const newAmount = Math.max(0, (goalData.current_amount || 0) - amountToDeduct);
-                    await supabase
-                        .from('goals')
-                        .update({ current_amount: newAmount })
-                        .eq('id', goalData.id);
-                }
-            }
-
-            // 2. Delete the transaction
-            const { error } = await supabase
-                .from('transactions')
-                .delete()
-                .eq('id', tx.id);
-
+            const { error } = await OfflineService.deleteTransaction(user.id, tx.id);
             if (error) throw error;
             showToast("Registro eliminado con éxito", "success");
             fetchDailyData(); // Refresh to be safe
@@ -403,92 +379,12 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                 {showScanReceipt && <ScanReceiptView onClose={() => setShowScanReceipt(false)} />}
                 {showTipModal && <TipModal onClose={() => setShowTipModal(false)} />}
                 {editingTx && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 p-4">
-                                <button
-                                    onClick={() => setEditingTx(null)}
-                                    className="size-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-colors"
-                                >
-                                    <Icon name="close" size={20} />
-                                </button>
-                            </div>
-
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="size-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
-                                    <Icon name="edit" size={28} />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Editar Registro</h2>
-                                    <p className="text-sm font-medium text-slate-400">Modifica los detalles del registro</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Descripción</label>
-                                    <input
-                                        type="text"
-                                        value={editingTx.title}
-                                        onChange={(e) => setEditingTx({ ...editingTx, title: e.target.value })}
-                                        className="w-full bg-slate-50 border-2 border-transparent rounded-[1.2rem] p-4 text-slate-900 font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all shadow-inner"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Monto ({symbol})</label>
-                                    <input
-                                        type="number"
-                                        value={Math.abs(editingTx.amount).toString().replace(/^0+/, '')}
-                                        onChange={(e) => setEditingTx({ ...editingTx, amount: Number(e.target.value) })}
-                                        className="w-full bg-slate-50 border-2 border-transparent rounded-[1.2rem] p-4 text-slate-900 font-bold focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">Fecha</label>
-                                    <input
-                                        type="date"
-                                        value={(() => {
-                                            if (!editingTx.rawDate) return '';
-                                            const d = new Date(editingTx.rawDate);
-                                            const year = d.getFullYear();
-                                            const month = String(d.getMonth() + 1).padStart(2, '0');
-                                            const day = String(d.getDate()).padStart(2, '0');
-                                            return `${year}-${month}-${day}`;
-                                        })()}
-                                        onChange={(e) => {
-                                            const newDateStr = e.target.value;
-                                            if (newDateStr) {
-                                                const originalDate = new Date(editingTx.rawDate || new Date());
-                                                const [y, m, d] = newDateStr.split('-').map(Number);
-
-                                                // Local time update
-                                                const updatedDate = new Date(originalDate);
-                                                updatedDate.setFullYear(y, m - 1, d);
-
-                                                setEditingTx({ ...editingTx, rawDate: updatedDate.toISOString() });
-                                            }
-                                        }}
-                                        className="w-full bg-slate-50 border-2 border-transparent rounded-[1.2rem] p-4 text-slate-900 font-bold focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-                                    />
-                                </div>
-
-
-                                <button
-                                    onClick={() => handleUpdate(editingTx)}
-                                    className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-bold text-lg hover:bg-black transition-all active:scale-95 shadow-lg shadow-slate-900/20"
-                                >
-                                    Guardar Cambios
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
+                    <EditTransactionModal 
+                        transaction={editingTx} 
+                        onClose={() => setEditingTx(null)} 
+                        onUpdated={() => fetchDailyData()}
+                        onDeleted={() => fetchDailyData()}
+                    />
                 )}
 
                 {/* Delete Confirmation Modal */}

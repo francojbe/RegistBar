@@ -317,9 +317,10 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ items }) => {
 // --- Transactions List ---
 interface TransactionsListProps {
   transactions: Transaction[];
+  onEdit?: (tx: Transaction) => void;
 }
 
-export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions }) => {
+export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, onEdit }) => {
   const { format } = useCurrency();
 
   if (transactions.length === 0) {
@@ -342,7 +343,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions
   return (
     <div className="flex flex-col gap-3">
       {transactions.map((tx) => (
-        <div key={tx.id} className="flex items-center justify-between p-5 rounded-[1.5rem] bg-white shadow-soft hover:shadow-md transition-all cursor-pointer group">
+        <div key={tx.id} onClick={() => onEdit?.(tx)} className="flex items-center justify-between p-5 rounded-[1.5rem] bg-white shadow-soft hover:shadow-md transition-all cursor-pointer group">
           <div className="flex items-center gap-4">
             <div className={`size-12 rounded-full flex items-center justify-center ${tx.icon === 'content_cut' ? 'bg-pink-100 text-pink-500' : tx.icon === 'savings' ? 'bg-green-100 text-green-500' : 'bg-orange-100 text-orange-500'}`}>
               <Icon name={tx.icon} size={20} />
@@ -355,7 +356,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions
                      <Icon name="cloud_upload" size={10} className="animate-pulse" />
                      Cola
                    </span>
-                )}
+                 )}
               </div>
               <span className="text-xs font-medium text-slate-400">{tx.date} • {tx.time}</span>
             </div>
@@ -364,7 +365,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ transactions
             <span className="text-base font-bold text-slate-900">
               {format(Number(tx.amount))}
             </span>
-            <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-bold">Ver</span>
+            <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-bold hover:bg-slate-200 transition-colors">Ver</span>
           </div>
         </div>
       ))}

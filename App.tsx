@@ -28,6 +28,7 @@ import { AdminView } from './components/AdminView';
 import { CompleteProfileView } from './components/CompleteProfileView';
 import { ResetPasswordView } from './components/ResetPasswordView';
 import { UpdateChecker } from './components/UpdateChecker';
+import { EditTransactionModal } from './components/EditTransactionModal';
 import { App as CapacitorApp } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -52,6 +53,7 @@ const App: React.FC = () => {
   });
   const [isCheckingRecovery, setIsCheckingRecovery] = useState(true); // New Blocker State
   const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
 
 
@@ -583,7 +585,7 @@ const App: React.FC = () => {
 
                 <section className="mt-2">
                   <h3 className="text-base font-bold text-slate-900 mb-4 px-1">Últimos Ingresos</h3>
-                  <TransactionsList transactions={recentTransactions} />
+                  <TransactionsList transactions={recentTransactions} onEdit={(tx) => setEditingTransaction(tx)} />
                 </section>
               </motion.div>
             )}
@@ -696,6 +698,14 @@ const App: React.FC = () => {
           {showNewService && <NewServiceModal onClose={() => setShowNewService(false)} onRequestPush={requestPushPermissions} />}
           {showSupplyExpense && <SupplyExpenseModal onClose={() => setShowSupplyExpense(false)} />}
           {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
+          {editingTransaction && (
+            <EditTransactionModal 
+              transaction={editingTransaction} 
+              onClose={() => setEditingTransaction(null)} 
+              onUpdated={() => fetchData()}
+              onDeleted={() => fetchData()}
+            />
+          )}
         </AnimatePresence>
 
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
