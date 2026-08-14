@@ -147,35 +147,40 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
     const analyzeReceipt = async (base64Image: string) => {
         setIsAnalyzing(true);
         try {
-            const blob = await resizeAndCompressImage(base64Image, 1024, 0.6);
-            const formData = new FormData();
-            formData.append('file', blob, 'receipt.jpg');
-
-            const response = await fetch('https://n8n.efinnovation.cl/webhook/scan-receipt-v2', {
-                method: 'POST',
-                body: formData
+            const { data, error } = await supabase.functions.invoke('scan-receipt', {
+                body: { image: base64Image }
             });
 
-            if (!response.ok) throw new Error('Error al conectar con el servidor de análisis');
+            if (error) throw error;
 
-            const data = await response.json();
             if (data) {
                 if (data.monto_total) setAmount(Number(data.monto_total));
                 if (data.nombre_comercio) setMerchant(data.nombre_comercio);
                 if (data.rut_emisor) setRut(data.rut_emisor);
 
+                if (data.tipo_transaccion === 'income' || data.tipo_transaccion === 'expense') {
+                    setTransactionType(data.tipo_transaccion);
+                }
+
+                if (data.categoria_sugerida) {
+                    const cat = String(data.categoria_sugerida).toLowerCase();
+                    if (cat.includes('supply') || cat.includes('insumo')) setSelectedCategory('Insumos');
+                    else if (cat.includes('equipment') || cat.includes('equipo')) setSelectedCategory('Equipamiento');
+                    else if (cat.includes('rent') || cat.includes('arriendo')) setSelectedCategory('Arriendo');
+                    else if (cat.includes('service') || cat.includes('servicio')) setSelectedCategory('Servicio');
+                }
+
                 // DATA OVERWRITE PROTECTION:
                 if (data.fecha_gasto) {
                     setDate(currentDate => {
-                        // If user already typed something, don't overwrite it with AI guess
                         if (currentDate) return currentDate;
                         return data.fecha_gasto.split('T')[0];
                     });
                 }
 
-                showToast('¡Datos extraídos con éxito!', 'success');
+                showToast('¡Comprobante extraído con éxito!', 'success');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Analysis error:", error);
             showToast('No se pudo analizar el comprobante automáticamente', 'error');
         } finally {
@@ -314,8 +319,11 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                                 <Icon name="photo_camera" size={40} className="text-emerald-500" />
                             </div>
                             <div className="space-y-1">
-                                <h3 className="text-white font-bold text-xl">Iniciar Cámara</h3>
-                                <p className="text-slate-400 text-sm">Si no se abre automáticamente, toca aquí</p>
+                                <h3 className="text-white font-bold text-xl">Tomar Foto o Subir Captura</h3>
+                                <p className="text-slate-400 text-xs">Si no se abre automáticamente, toca aquí</p>
+                                <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                                    🇨🇱 Boletas, Vouchers POS y Transferencias
+                                </span>
                             </div>
                         </div>
                     </div>
