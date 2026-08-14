@@ -4,7 +4,6 @@ import { Transaction } from '../types';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { LOGO_BASE64 } from './logoData';
 
 interface ReportData {
     userName: string;
@@ -17,11 +16,31 @@ interface ReportData {
         netIncome: number;
         servicesTotal: number;
         tipsTotal: number;
-        productsTotal: number; // If we track products separate from services? Assuming 'other' or based on category
+        productsTotal: number;
         suppliesTotal: number;
-        commissionRentTotal: number; // Needs logic to separate if available in transaction metadata
+        commissionRentTotal: number;
     };
 }
+
+/**
+ * Loads the application logo as a base64 Data URL dynamically.
+ * Falls back gracefully if image loading fails so PDF generation never breaks.
+ */
+const getLogoDataUrl = async (): Promise<string | null> => {
+    try {
+        const response = await fetch('/logo.png');
+        if (!response.ok) return null;
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        });
+    } catch {
+        return null;
+    }
+};
 
 export const generateMonthlyReportPDF = async (data: ReportData) => {
     const doc = new jsPDF();
@@ -29,14 +48,21 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     const margin = 20;
 
     // -- 1. HEADER --
-    // Logo (15x15mm) at top left
-    doc.addImage(LOGO_BASE64, 'PNG', margin, 10, 15, 15);
+    // Try loading logo dynamically
+    const logoDataUrl = await getLogoDataUrl();
+    if (logoDataUrl) {
+        try {
+            doc.addImage(logoDataUrl, 'PNG', margin, 10, 15, 15);
+        } catch (e) {
+            console.warn('Could not render logo in PDF:', e);
+        }
+    }
 
     // App Name next to logo
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(79, 70, 229); // Primary Blue
-    doc.text('RegistBar', margin + 18, 19);
+    doc.text('RegistBar', margin + (logoDataUrl ? 18 : 0), 19);
 
     // reset font
     doc.setFont('helvetica', 'normal');
@@ -67,7 +93,7 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     doc.text(`Período: ${data.period}`, margin + 5, 58);
 
     // -- 2. KPIs (Cards) --
-    const startY = 75; // Shifted cards down
+    const startY = 75;
     const cardWidth = (pageWidth - (margin * 2) - 10) / 3;
     const cardHeight = 30;
 
@@ -110,7 +136,6 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     doc.setTextColor(30, 58, 138); // Dark Blue
     doc.text(`$ ${data.stats.netIncome.toLocaleString('es-CL')}`, margin + (cardWidth * 2) + 15, startY + 22);
 
-
     // -- 3. DESGLOSE DE INGRESOS (Table) --
     const breakdownY = startY + 45;
     doc.setFontSize(12);
@@ -131,16 +156,13 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     });
 
     // -- 4. ESTRUCTURA DE COSTOS --
-    // Use last autoTable finalY to position next section
     let finalY = (doc as any).lastAutoTable.finalY + 15;
 
     doc.setFontSize(12);
     doc.text('Estructura de Costos', margin, finalY);
 
-    // Simple Bar Chart Logic (Visual only)
-    // Max width for bar area
     const barAreaWidth = pageWidth - (margin * 2);
-    const maxVal = Math.max(data.stats.suppliesTotal, data.stats.commissionRentTotal) || 1; // Avoid divide by zero
+    const maxVal = Math.max(data.stats.suppliesTotal, data.stats.commissionRentTotal) || 1;
 
     const suppliesWidth = (data.stats.suppliesTotal / maxVal) * (barAreaWidth * 0.8);
     const commRentWidth = (data.stats.commissionRentTotal / maxVal) * (barAreaWidth * 0.8);
@@ -158,19 +180,6 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     }
 
     // Bar 2: Comisiones/Arriendo
-    // Note: We might not have specific commission data derived easily from general expenses unless categorized effectively.
-    // Assuming 'other' expense might be rent, or relying on expense type.
-    // For now, if we don't have explicit split, we just verify total expenses.
-    // If we can't split, we just list generic expenses.
-
-    // Given current data structure, 'expense' only has category 'supply' or 'other'. Rent deduction is calculated logic in App.tsx but
-    // might not be stored as a transaction unless explicitly created. 
-    // Wait, transactions table has 'commission_amount' metadata on services.
-    // But purely expense transactions are 'supply' or 'other'.
-    // If user is rent model, rent is deducted conceptually.
-
-    // Let's rely on what passes in 'suppliesTotal' vs 'commissionRentTotal' (which we will calculate before calling this).
-
     if (data.stats.commissionRentTotal > 0) {
         doc.setFontSize(9);
         doc.text('Comisiones / Arriendo', margin, finalY);
@@ -181,7 +190,6 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
     }
 
     if (data.stats.suppliesTotal === 0 && data.stats.commissionRentTotal === 0 && data.stats.totalExpenses > 0) {
-        // Catch all for expenses not categorized above
         doc.text('Gastos Generales', margin, finalY);
         const genWidth = (data.stats.totalExpenses / maxVal) * (barAreaWidth * 0.8);
         doc.setFillColor(156, 163, 175); // Gray
@@ -190,9 +198,7 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
         finalY += 15;
     }
 
-
-
-    // -- 5. DETALLE DE MOVIMIENTOS (Para Contador) --
+    // -- 5. DETALLE DE MOVIMIENTOS --
     doc.addPage();
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(14);
@@ -225,12 +231,12 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
         headStyles: { fillColor: [51, 65, 85] }, // Slate 700
         styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-            0: { cellWidth: 25 }, // Date
-            1: { cellWidth: 'auto' }, // Desc
-            2: { cellWidth: 20 }, // Cat
-            3: { cellWidth: 25, halign: 'right' }, // Gross
-            4: { cellWidth: 25, halign: 'right' }, // Comm
-            5: { cellWidth: 35, halign: 'right' }  // Net
+            0: { cellWidth: 25 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 25, halign: 'right' },
+            4: { cellWidth: 25, halign: 'right' },
+            5: { cellWidth: 35, halign: 'right' }
         }
     });
 
@@ -239,7 +245,6 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
         ? "¡Buen trabajo! Mantener tus finanzas en orden es el primer paso para el crecimiento."
         : "Sigue registrando tus movimientos para tener control total de tu negocio.";
 
-    // Position footer at bottom of the LAST page (which autoTable might have extended)
     const pageCount = (doc as any).internal.getNumberOfPages();
     doc.setPage(pageCount);
 
@@ -252,11 +257,9 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
 
     const fileName = `Reporte_Financiero_${data.period.replace(' ', '_')}.pdf`;
 
-
     if (Capacitor.isNativePlatform()) {
         try {
             const pdfOutput = doc.output('datauristring');
-            // Remove the prefix "data:application/pdf;filename=generated.pdf;base64,"
             const pdfBase64 = pdfOutput.split(',')[1];
 
             await Filesystem.writeFile({
@@ -282,7 +285,6 @@ export const generateMonthlyReportPDF = async (data: ReportData) => {
             throw error;
         }
     } else {
-        // Browser fallback
         doc.save(fileName);
     }
 };

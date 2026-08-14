@@ -34,8 +34,8 @@ const TOOLS_DEF = [
     }
 ];
 
-const getChileTime = () => {
-    const now = new Date();
+// Dynamic Chile Timezone Calculation (Handles both Summer UTC-3 and Winter UTC-4)
+const getChileTime = (date = new Date()) => {
     return new Intl.DateTimeFormat('es-CL', {
         timeZone: 'America/Santiago',
         year: 'numeric',
@@ -45,47 +45,77 @@ const getChileTime = () => {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
-    }).format(now);
+    }).format(date);
 };
 
-const systemPrompt = `Eres el ASESOR REGISTBAR 🇨🇱. Socio estratégico de Franco para su barbería.
+const getChileOffset = (date = new Date()): string => {
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Santiago',
+            timeZoneName: 'shortOffset'
+        }).formatToParts(date);
+        const tzPart = parts.find(p => p.type === 'timeZoneName')?.value; // e.g. "GMT-3" or "GMT-4"
+        if (tzPart && tzPart.startsWith('GMT')) {
+            const rawOffset = tzPart.replace('GMT', '').trim();
+            const num = parseInt(rawOffset, 10);
+            if (!isNaN(num)) {
+                const sign = num < 0 ? '-' : '+';
+                const abs = Math.abs(num);
+                return `${sign}${String(abs).padStart(2, '0')}:00`;
+            }
+        }
+    } catch {
+        // Fallback
+    }
+    return '-03:00';
+};
+
+const getChileIsoDate = (offsetDays = 0): string => {
+    const d = new Date();
+    // Get formatted year, month, day in America/Santiago
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Santiago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(d); // e.g. "2026-08-14"
+
+    const [year, month, day] = parts.split('-').map(Number);
+    const targetDate = new Date(year, month - 1, day + offsetDays);
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(targetDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dayStr}`;
+};
+
+const systemPrompt = `Eres el ASESOR REGISTBAR 🇨🇱. Socio estratégico y copiloto financiero para barberos y estilistas profesionales.
 FECHA ACTUAL: ${getChileTime()}.
 
-REGLAS DE ORO DE ENTRENAMIENTO (BASADO EN AUDITORÍA DE 20 ÚLTIMOS LOGS):
-
+REGLAS DE ORO DE RESPUESTA:
 1. PROHIBICIÓN TOTAL DE ALUCINACIÓN:
-   - ERROR DETECTADO: Inventaste que Octubre 2024 fue el peor mes con $18.450 y que un finde generó $253.100.
-   - MANDATO: Si 'context_data' NO tiene el desglose diario (solo tiene totales), di: "Franco, tengo el total del periodo (**$X**), pero no tengo el detalle día por día para decirte cuál fue el exacto peor o mejor". NUNCA INVENTES CIFRAS.
+   - NUNCA inventes cifras si no están en los datos obtenidos por las herramientas.
+   - Si no tienes el desglose día a día, di claramente el total registrado y aclara que no tienes el detalle por día individual.
 
 2. LÓGICA DE HERRAMIENTAS:
-   - Si piden "Mejor/Peor", "Diferencia" o "Comparación", USA 'get_financial_summary'.
-   - Si la herramienta falla o no devuelve datos, di: "No tengo registros suficientes para comparar".
+   - Para balances, "cuánto gané", "cuánto gasté", "mejor/peor periodo", "comparar" o "metas", SIEMPRE ejecuta 'get_financial_summary'.
+   - Si el usuario busca un gasto específico o corte de pelo, usa 'search_transactions'.
 
-3. MANEJO DE HISTORIAL:
-   - No repitas el JSON de la herramienta en tu respuesta de texto.
-   - Responde con naturalidad, usando el formato "Punto Medio":
-     * Saludo breve.
-     * Datos claves en **negritas**.
-     * Un consejo de negocio basado en la meta (Vacaciones 2026).
+3. FORMATO DE RESPUESTA DIRECTO Y VISUAL:
+   - Saludo breve y cordial.
+   - Datos clave destacados con formato claro y cifras en **negritas** (ej: **$120.000**).
+   - Utiliza viñetas cortas para listas de gastos o servicios.
+   - Concluye con un consejo estratégico de negocio o ánimo para alcanzar la meta.
 
-4. FILTRO DE AÑO (2026 vs 2025):
-   - "Este año" es exclusivamente desde el 1 de enero de 2026.
-   - "El año pasado" es 2025.
-
-REGLA DE SEGURIDAD: Prefiero que digas "No lo sé" a que mientas sobre las finanzas de Franco.
-
-5. INTERNACIONALIZACIÓN Y MONEDA:
-   - Tu identidad base es chilena (CLP), PERO si en los datos de la herramienta ("get_financial_summary") ves el campo 'user_currency', DEBES ADAPTARTE.
-   - Si user_currency='USD' -> Habla en DÓLARES. Formato: $1,200.50 (coma para miles, punto para decimales).
-   - Si user_currency='EUR' -> Habla en EUROS. Formato: 1.200,50 € (punto para miles, coma decimal).
-   - Si user_currency='CLP' -> Mantén formato chileno ($1.200).
-   - Respeta siempre la moneda del usuario en TODOS los montos que menciones.`;
+4. INTERNACIONALIZACIÓN Y MONEDA:
+   - Si 'user_currency' es CLP: $1.200 (sin decimales).
+   - Si 'user_currency' es USD: $1,200.50.
+   - Si 'user_currency' es EUR: 1.200,50 €.`;
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
     try {
-        const { query, history } = await req.json();
+        const { query, history, stream = false } = await req.json();
         const authHeader = req.headers.get('Authorization');
 
         const supabaseClient = createClient(
@@ -107,61 +137,55 @@ Deno.serve(async (req) => {
             let q = supabaseClient.from('transactions').select('amount, type, title, category, date').eq('user_id', user.id);
 
             if (name === "get_financial_summary") {
-                const getChileDateStr = (offsetDays = 0) => {
-                    const d = new Date();
-                    d.setHours(d.getHours() - 3);
-                    d.setDate(d.getDate() + offsetDays);
-                    return d.toISOString().split('T')[0];
-                };
-
-                const currentYear = new Date().getFullYear();
+                const now = new Date();
+                const tzOffset = getChileOffset(now);
+                const currentYear = now.getFullYear();
 
                 if (args.period === "today") {
-                    const todayStr = getChileDateStr(0);
-                    q = q.gte('date', `${todayStr}T00:00:00-03:00`).lte('date', `${todayStr}T23:59:59-03:00`);
+                    const todayStr = getChileIsoDate(0);
+                    q = q.gte('date', `${todayStr}T00:00:00${tzOffset}`).lte('date', `${todayStr}T23:59:59${tzOffset}`);
                 } else if (args.period === "yesterday") {
-                    const yestStr = getChileDateStr(-1);
-                    q = q.gte('date', `${yestStr}T00:00:00-03:00`).lte('date', `${yestStr}T23:59:59-03:00`);
+                    const yestStr = getChileIsoDate(-1);
+                    q = q.gte('date', `${yestStr}T00:00:00${tzOffset}`).lte('date', `${yestStr}T23:59:59${tzOffset}`);
                 } else if (args.period === "this_week") {
                     const d = new Date();
                     const day = d.getDay() || 7;
                     if (day !== 1) d.setDate(d.getDate() - (day - 1));
-                    const mondayStr = d.toISOString().split('T')[0];
-                    const end = new Date(d);
-                    end.setDate(end.getDate() + 6);
-                    const sundayStr = end.toISOString().split('T')[0];
-                    q = q.gte('date', `${mondayStr}T00:00:00-03:00`).lte('date', `${sundayStr}T23:59:59-03:00`);
+                    const mondayStr = getChileIsoDate(-(day - 1));
+                    const sundayD = new Date(d);
+                    sundayD.setDate(sundayD.getDate() + 6);
+                    const sundayParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(sundayD);
+                    q = q.gte('date', `${mondayStr}T00:00:00${tzOffset}`).lte('date', `${sundayParts}T23:59:59${tzOffset}`);
                 } else if (args.period === "this_month") {
-                    const d = new Date();
-                    const y = d.getFullYear();
-                    const m = d.getMonth() + 1;
+                    const y = currentYear;
+                    const m = now.getMonth() + 1;
                     const lastDay = new Date(y, m, 0).getDate();
-                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`);
+                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00${tzOffset}`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59${tzOffset}`);
                 } else if (args.period === "last_month") {
                     const d = new Date();
                     d.setMonth(d.getMonth() - 1);
                     const y = d.getFullYear();
                     const m = d.getMonth() + 1;
                     const lastDay = new Date(y, m, 0).getDate();
-                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`);
+                    q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00${tzOffset}`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59${tzOffset}`);
                 } else if (args.period === "this_year") {
-                    q = q.gte('date', `${currentYear}-01-01T00:00:00-03:00`).lte('date', `${currentYear}-12-31T23:59:59-03:00`);
+                    q = q.gte('date', `${currentYear}-01-01T00:00:00${tzOffset}`).lte('date', `${currentYear}-12-31T23:59:59${tzOffset}`);
                 } else if (args.period === "last_year") {
                     const lastY = currentYear - 1;
-                    q = q.gte('date', `${lastY}-01-01T00:00:00-03:00`).lte('date', `${lastY}-12-31T23:59:59-03:00`);
+                    q = q.gte('date', `${lastY}-01-01T00:00:00${tzOffset}`).lte('date', `${lastY}-12-31T23:59:59${tzOffset}`);
                 } else if (args.period === "custom") {
-                    let y = args.year || currentYear;
-                    let m = args.month;
+                    const y = args.year || currentYear;
+                    const m = args.month;
                     if (m) {
                         const lastDay = new Date(y, m, 0).getDate();
-                        q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00-03:00`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59-03:00`);
+                        q = q.gte('date', `${y}-${String(m).padStart(2, '0')}-01T00:00:00${tzOffset}`).lte('date', `${y}-${String(m).padStart(2, '0')}-${lastDay}T23:59:59${tzOffset}`);
                     } else {
-                        q = q.gte('date', `${y}-01-01T00:00:00-03:00`).lte('date', `${y}-12-31T23:59:59-03:00`);
+                        q = q.gte('date', `${y}-01-01T00:00:00${tzOffset}`).lte('date', `${y}-12-31T23:59:59${tzOffset}`);
                     }
                 }
 
                 const { data } = await q;
-                const { data: profile } = await supabaseClient.from('profiles').select('first_name, currency').eq('id', user.id).single();
+                const { data: profile } = await supabaseClient.from('profiles').select('first_name, currency').eq('id', user.id).maybeSingle();
                 const { data: goals } = await supabaseClient.from('goals').select('title, target_amount, current_amount, deadline').eq('user_id', user.id);
 
                 const income_txs = data?.filter(t => t.type === 'income') || [];
@@ -232,7 +256,7 @@ Deno.serve(async (req) => {
                         messages: messages,
                         tools: openAITools,
                         tool_choice: "auto",
-                        max_tokens: 500
+                        max_tokens: 600
                     })
                 });
 
@@ -256,7 +280,7 @@ Deno.serve(async (req) => {
                     const resp2 = await fetch(provider.url, {
                         method: "POST",
                         headers: { "Authorization": `Bearer ${provider.key}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({ model: provider.model, messages: finalMessages, max_tokens: 500 })
+                        body: JSON.stringify({ model: provider.model, messages: finalMessages, max_tokens: 600 })
                     });
 
                     if (!resp2.ok) throw new Error(`${provider.name} Second Pass Error: ${await resp2.text()}`);
@@ -267,27 +291,33 @@ Deno.serve(async (req) => {
                 }
 
                 finalProvider = provider.name;
-                break; // Exit loop on success
+                break;
             } catch (e) {
                 console.error(`[FAIL] ${provider.name}:`, e.message);
-                continue; // Try next provider
+                continue;
             }
         }
 
         if (!resultText) throw new Error("All AI providers failed.");
 
-        await supabaseAdmin.from('chat_logs').insert({
+        // Async log saving (doesn't block return)
+        supabaseAdmin.from('chat_logs').insert({
             user_id: user.id,
             query: query,
             response: resultText,
             provider: finalProvider,
             model: finalProvider === "groq" ? "llama-3.3-70b-versatile" : "llama3.1-8b",
             context_data: toolRes
+        }).then(() => {});
+
+        return new Response(JSON.stringify({ answer: resultText }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
-        return new Response(JSON.stringify({ answer: resultText }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
     } catch (err: any) {
-        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
     }
 })

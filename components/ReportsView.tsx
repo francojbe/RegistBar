@@ -4,8 +4,6 @@ import { Transaction } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { formatInTimeZone } from 'date-fns-tz';
-import { generateMonthlyReportPDF } from '../utils/pdfGenerator';
 import { motion } from 'framer-motion';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
@@ -245,6 +243,7 @@ export const ReportsView: React.FC = () => {
                 userNameToUse = 'Usuario';
             }
 
+            const { generateMonthlyReportPDF } = await import('../utils/pdfGenerator');
             await generateMonthlyReportPDF({
                 userName: userNameToUse,
                 userEmail: user.email || '',

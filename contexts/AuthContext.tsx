@@ -40,28 +40,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         initGoogleAuth();
 
-        // Check active session
-        const initAuth = async () => {
-            // 1. Get session from local storage (Fast)
-            const { data: { session } } = await supabase.auth.getSession();
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            // 2. Fetch fresh user data from server (Ensure up-to-date metadata)
-            if (session?.user) {
-                const { data: { user: freshUser }, error } = await supabase.auth.getUser();
-                if (freshUser && !error) {
-                    // Check Subscription in DB
-                    const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', freshUser.id).single();
-                    if (profile) {
-                        // Merge subscription_status into user metadata for easier access app-wide without refetching constantly
-                        freshUser.user_metadata = { ...freshUser.user_metadata, subscription_status: profile.subscription_status || 'free' };
-                    }
-                    setUser(freshUser);
+        // Check active session with a safety timeout so it never hangs indefinitely
+        const timeout = setTimeout(() => {
+            setLoading((prev) => {
+                if (prev) {
+                    console.warn('Auth check reached safety timeout (3s), releasing loading state.');
+                    return false;
                 }
-            }
+                return false;
+            });
+        }, 3000);
 
-            setLoading(false);
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                setSession(session);
+                setUser(session?.user ?? null);
+
+                if (session?.user) {
+                    const { data: { user: freshUser }, error } = await supabase.auth.getUser();
+                    if (freshUser && !error) {
+                        const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', freshUser.id).maybeSingle();
+                        if (profile) {
+                            freshUser.user_metadata = { ...freshUser.user_metadata, subscription_status: profile.subscription_status || 'free' };
+                        }
+                        setUser(freshUser);
+                    }
+                }
+            } catch (err) {
+                console.error('Error during initAuth:', err);
+            } finally {
+                clearTimeout(timeout);
+                setLoading(false);
+            }
         };
 
         initAuth();
@@ -69,19 +80,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
-            // If the event is USER_UPDATED, session.user might be up to date, 
-            // but explicitly setting it from session is usually safe.
-            // However, just to be super sure on updates:
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            clearTimeout(timeout);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signInWithGoogle = async () => {
         try {
-            // Use isNativePlatform() for more robust check
             if (!Capacitor.isNativePlatform()) {
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
@@ -91,7 +101,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
                 if (error) console.error('Error signing in:', error.message);
             } else {
-                // Native Login (Android/iOS)
                 const googleUser = await GoogleAuth.signIn();
 
                 if (googleUser.authentication.idToken) {
@@ -106,7 +115,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } catch (error: any) {
             console.error('Error signing in with Google:', error);
-            // Optionally show a toast/alert here
         }
     };
 
@@ -117,7 +125,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return (
         <AuthContext.Provider value={{ session, user, loading, signInWithGoogle, signOut }}>
-            {!loading && children}
+            {loading ? (
+                <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                    <div className="p-4 bg-indigo-600/20 rounded-3xl mb-4 text-indigo-400 animate-pulse border border-indigo-500/20 shadow-lg">
+                        <span className="material-symbols-outlined text-4xl">content_cut</span>
+                    </div>
+                    <div className="size-7 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-xs text-slate-400 font-semibold mt-3 tracking-wide">Cargando RegistBar...</p>
+                </div>
+            ) : (
+                children
+            )}
         </AuthContext.Provider>
     );
 };

@@ -35,163 +35,38 @@ import { Capacitor } from '@capacitor/core';
 import { OfflineService } from './OfflineService';
 import { formatInTimeZone, toDate } from 'date-fns-tz';
 
+import { useDashboardModals } from './hooks/useDashboardModals';
+import { usePushNotifications } from './hooks/usePushNotifications';
+import { usePasswordRecovery } from './hooks/usePasswordRecovery';
+
 const SANTIAGO_TZ = 'America/Santiago';
 
 const App: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(Tab.Home);
-  const [isFabOpen, setIsFabOpen] = useState(false);
-  const [showScan, setShowScan] = useState(false);
-  const [showTip, setShowTip] = useState(false);
-  const [showNewService, setShowNewService] = useState(false);
-  const [showSupplyExpense, setShowSupplyExpense] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
-  const [isPasswordReset, setIsPasswordReset] = useState(() => {
-    // Persist recovery state across re-renders
-    return sessionStorage.getItem('recovery_mode') === 'true';
-  });
-  const [isCheckingRecovery, setIsCheckingRecovery] = useState(true); // New Blocker State
-  const [fcmToken, setFcmToken] = useState<string | null>(null);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
+  // Modular Custom Hooks
+  const {
+    isFabOpen,
+    setIsFabOpen,
+    showScan,
+    setShowScan,
+    showTip,
+    setShowTip,
+    showNewService,
+    setShowNewService,
+    showSupplyExpense,
+    setShowSupplyExpense,
+    showNotifications,
+    setShowNotifications,
+    showProfilePhoto,
+    setShowProfilePhoto,
+    editingTransaction,
+    setEditingTransaction,
+  } = useDashboardModals();
 
-
-  const requestPushPermissions = async () => {
-    if (Capacitor.getPlatform() === 'web') return;
-    
-    let permStatus = await PushNotifications.checkPermissions();
-    if (permStatus.receive === 'prompt') {
-      permStatus = await PushNotifications.requestPermissions();
-    }
-
-    if (permStatus.receive === 'granted') {
-      await PushNotifications.register();
-      return true;
-    }
-    return false;
-  };
-
-  // Push Notifications Setup (Listeners only on mount)
-  React.useEffect(() => {
-    if (Capacitor.getPlatform() === 'web') return;
-
-    // Listeners
-    PushNotifications.addListener('registration', token => {
-      console.log('My token: ' + token.value);
-      setFcmToken(token.value);
-    });
-
-    PushNotifications.addListener('registrationError', (error: any) => {
-      console.log('Error on registration: ' + JSON.stringify(error));
-    });
-
-    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
-      console.log('Push received: ' + JSON.stringify(notification));
-      const { title, body } = notification;
-      alert(`🔔 Notificación recibida:\n${title}\n${body}`);
-    });
-
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
-      console.log('Push action performed: ' + JSON.stringify(notification));
-      setShowNotifications(true);
-    });
-
-    return () => {
-      PushNotifications.removeAllListeners();
-    };
-  }, []);
-
-  // Sync Token with Supabase (Multi-device support)
-  React.useEffect(() => {
-    const saveToken = async () => {
-      if (user && fcmToken) {
-        // Upsert into user_devices: if token exists, update timestamp; if not, insert.
-        const { error } = await supabase
-          .from('user_devices')
-          .upsert({
-            user_id: user.id,
-            fcm_token: fcmToken,
-            device_type: Capacitor.getPlatform(), // 'android', 'ios', or 'web'
-            last_used_at: new Date().toISOString()
-          }, { onConflict: 'fcm_token' });
-
-        if (error) {
-          console.error('Error saving device token:', error);
-        } else {
-          console.log('Device token synced successfully!');
-        }
-      }
-    };
-    saveToken();
-  }, [user, fcmToken]);
-
-  // Handle Password Recovery & Deep Links
-  React.useEffect(() => {
-    // 0. Check Web Hash on Mount (For Browser Support)
-    if (window.location.hash && window.location.hash.includes('type=recovery')) {
-      console.log("Recovery hash detected!");
-      sessionStorage.setItem('recovery_mode', 'true');
-      setIsPasswordReset(true);
-    }
-    // Release the blocker immediately after checking the URL
-    setIsCheckingRecovery(false);
-
-    // 1. Listen for Supabase Auth Events (Magic Link / Recovery)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth Event:", event);
-      if (event === 'PASSWORD_RECOVERY') {
-        console.log("Password Recovery Event Triggered!");
-        sessionStorage.setItem('recovery_mode', 'true');
-        setIsPasswordReset(true);
-      }
-    });
-
-    // 2. Listen for Deep Links (Android)
-    const setupDeepLinks = async () => {
-      await CapacitorApp.removeAllListeners();
-
-      CapacitorApp.addListener('appUrlOpen', async (data) => {
-        try {
-          const urlStr = data.url;
-          // Check for 'reset-password' path OR 'type=recovery' param
-          if (urlStr.includes('reset-password') || urlStr.includes('type=recovery')) {
-            const url = new URL(urlStr);
-            const hash = url.hash.substring(1);
-            const params = new URLSearchParams(hash);
-            const accessToken = params.get('access_token');
-            const refreshToken = params.get('refresh_token');
-
-            if (accessToken && refreshToken) {
-              const { error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-              });
-              if (!error) {
-                sessionStorage.setItem('recovery_mode', 'true');
-                setIsPasswordReset(true);
-              }
-            }
-          }
-          // Check for completion action (e.g. Password Updated externally)
-          else if (urlStr.includes('action_complete')) {
-            console.log("Action complete deep link detected. Signing out stale session.");
-            await supabase.auth.signOut();
-            window.location.reload(); // Reload to force clean state (Login View)
-          }
-        } catch (e) {
-          console.error('Error handling deep link:', e);
-        }
-      });
-    };
-
-    setupDeepLinks();
-
-    return () => {
-      subscription.unsubscribe();
-      CapacitorApp.removeAllListeners();
-    };
-  }, []);
+  const { isPasswordReset, setIsPasswordReset, isCheckingRecovery } = usePasswordRecovery();
+  const { fcmToken, requestPushPermissions } = usePushNotifications(user, () => setShowNotifications(true));
 
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [totalIncome, setTotalIncome] = useState(0); // This will be Net (Total Real)
