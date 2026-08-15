@@ -138,7 +138,33 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
             </header>
 
             {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 no-scrollbar pb-32">
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 no-scrollbar pb-32">
+
+                {/* Quick Preset Chips */}
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Atajos de 1-Tap</label>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        {[
+                            { title: 'Corte Degradé', price: 12000 },
+                            { title: 'Corte Clásico', price: 10000 },
+                            { title: 'Perfilado Barba', price: 6000 },
+                            { title: 'Combo Corte + Barba', price: 16000 },
+                            { title: 'Cejas / Diseño', price: 4000 }
+                        ].map((preset, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                    setServiceName(preset.title);
+                                    setTotalPrice(preset.price.toString());
+                                }}
+                                className="px-3 py-1.5 bg-white border border-slate-200/90 rounded-full text-xs font-bold text-slate-700 whitespace-nowrap hover:border-primary hover:text-primary active:scale-95 transition-all shadow-xs"
+                            >
+                                {preset.title} ({format(preset.price)})
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Service Name */}
                 <div className="flex flex-col gap-2">

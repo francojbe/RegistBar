@@ -35,14 +35,15 @@ export const OfflineService = {
      * Saves a transaction locally and attempts to sync it.
      */
     async saveTransaction(userId: string, payload: any) {
-        // Generate a consistent ID for both local and cloud
-        const id = generateUUID();
+        // Generate a consistent UUID for both local and cloud
+        const id = payload.id || generateUUID();
         const payloadWithId = { ...payload, id };
 
         let localId;
         try {
-            // 1. Add to local queue (Dexie) - This is mandatory for offline-first
+            // 1. Add to local queue (Dexie) - Idempotent offline-first
             localId = await db.transactions.add({
+                client_uuid: id,
                 user_id: userId,
                 is_synced: 0,
                 payload: payloadWithId,
@@ -53,11 +54,11 @@ export const OfflineService = {
             return { data: null, error: localErr };
         }
 
-        // 2. Try to sync immediately
+        // 2. Try to sync immediately with idempotent upsert
         try {
             const { data, error } = await supabase
                 .from('transactions')
-                .insert({
+                .upsert({
                   ...payloadWithId,
                   user_id: userId
                 })

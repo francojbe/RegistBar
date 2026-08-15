@@ -3,6 +3,7 @@ import { Transaction } from './types';
 
 export interface LocalTransaction {
   id?: number;
+  client_uuid?: string;
   user_id: string;
   is_synced: 0 | 1; // 0 = pending, 1 = synced
   payload: any;
@@ -14,8 +15,8 @@ export class RegistBarDatabase extends Dexie {
 
   constructor() {
     super('RegistBarDB');
-    this.version(1).stores({
-      transactions: '++id, user_id, is_synced, created_at'
+    this.version(2).stores({
+      transactions: '++id, client_uuid, user_id, is_synced, created_at'
     });
   }
 }
