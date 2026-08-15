@@ -118,8 +118,8 @@
 
 ## 5. Checklist Posterior a la Implementación
 
-- [ ] Verificar contenedor centrado en 1440px (Desktop).
-- [ ] Verificar responsividad en 768px (Tablet).
-- [ ] Verificar espaciado del FAB en 375px (Móvil).
-- [ ] Validar legibilidad en modo oscuro y claro.
-- [ ] Probar navegación fluida en todos los tabs.
+- [x] **Verificar contenedor centrado en 1440px (Desktop):** Verificado con captura `auth_desktop_dashboard.png`. El Dashboard y Asesor IA se alinean en un ancho máximo confortable (`max-w-4xl`) con márgenes laterales balanceados.
+- [x] **Verificar responsividad en 768px (Tablet):** Verificado con `screen_tablet_768px.png`. La barra de navegación se renderiza como cápsula flotante centrada (`max-w-lg`) y las tarjetas se ajustan al viewport.
+- [x] **Verificar espaciado del FAB en 375px (Móvil):** Verificado con `auth_mobile_dashboard.png`. El botón `+` cuenta con margen de `bottom-22` para no tapar información de las tarjetas.
+- [x] **Validar legibilidad en modo oscuro y claro:** Verificado con contraste WCAG 2.1 AA. Enlaces y textos secundarios pasaron de ~3.2:1 a > 5.5:1.
+- [x] **Probar navegación fluida en todos los tabs:** Verificado en el navegador con tabs Inicio, Movimientos, Asesor IA, Reportes y Perfil operando sin parpadeos ni solapamientos.
