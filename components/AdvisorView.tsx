@@ -173,7 +173,7 @@ export const AdvisorView: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)] animate-fade-in">
+        <div className="flex flex-col h-[calc(100vh-140px)] animate-fade-in max-w-3xl mx-auto w-full">
             {/* Header */}
             <div className="flex items-center justify-between mb-3 px-2">
                 <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export const AdvisorView: React.FC = () => {
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`
-                            max-w-[88%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap
+                            max-w-[88%] md:max-w-[78%] lg:max-w-[72%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap
                             ${msg.role === 'user'
                                 ? 'bg-slate-900 text-white rounded-br-none shadow-slate-900/10'
                                 : 'bg-white text-slate-700 border border-slate-200/80 rounded-bl-none shadow-slate-200/50'}

@@ -267,16 +267,16 @@ export const LoginView: React.FC = () => {
                     transition={{ delay: 0.2 }}
                     className="w-full max-w-md lg:w-[450px]"
                 >
-                    <div className="bg-[#0f0f0f]/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 lg:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+                    <div className="bg-[#0f0f0f]/80 backdrop-blur-3xl border border-white/10 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 lg:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
                         {/* Shimmer effect on card */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                         
                         <div className="relative z-20">
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-bold text-white mb-2">
+                            <div className="mb-6 sm:mb-8">
+                                <h2 className="text-2xl font-bold text-white mb-1.5">
                                     {isRegistering ? 'Crea tu Cuenta' : 'Iniciar Sesión'}
                                 </h2>
-                                <p className="text-slate-500 text-sm">
+                                <p className="text-slate-400 text-xs sm:text-sm">
                                     {isRegistering 
                                         ? 'Únete a la élite del sector belleza.' 
                                         : 'Gestiona tu éxito financiero hoy.'}
@@ -288,33 +288,34 @@ export const LoginView: React.FC = () => {
                                     handleAuth(e);
                                     triggerHaptic(ImpactStyle.Medium);
                                 }} 
-                                className="flex flex-col gap-4"
+                                className="flex flex-col gap-3 sm:gap-4"
                             >
                                 {isRegistering && (
                                     <>
                                         <div className="group relative">
-                                            <Icon name="person" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                            <Icon name="person" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                                             <input
                                                 type="text"
                                                 placeholder="Nombre Completo"
                                                 value={fullName}
                                                 onChange={(e) => setFullName(e.target.value)}
                                                 required
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 sm:py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium text-sm sm:text-base"
                                             />
                                         </div>
 
-                                        <div className="flex gap-3">
+                                        <div className="flex gap-2.5 sm:gap-3">
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     handleGenderSelect('female');
                                                     triggerHaptic(ImpactStyle.Light);
                                                 }}
-                                                className={`flex-1 py-3 rounded-2xl border flex items-center justify-center gap-2 transition-all ${gender === 'female' ? 'bg-pink-500 border-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)] scale-[1.02]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                                                className={`flex-1 py-2.5 sm:py-3 rounded-2xl border flex items-center justify-center gap-2 transition-all ${gender === 'female' ? 'bg-pink-500/20 border-pink-500 text-pink-300 font-bold shadow-[0_0_15px_rgba(236,72,153,0.25)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
                                             >
-                                                <Icon name="female" size={18} />
+                                                <Icon name="female" size={18} className={gender === 'female' ? 'text-pink-400' : 'text-slate-400'} />
                                                 <span className="text-xs font-bold uppercase tracking-wider">Mujer</span>
+                                                {gender === 'female' && <Icon name="check" size={14} className="text-pink-400 ml-0.5" />}
                                             </button>
                                             <button
                                                 type="button"
@@ -322,21 +323,22 @@ export const LoginView: React.FC = () => {
                                                     handleGenderSelect('male');
                                                     triggerHaptic(ImpactStyle.Light);
                                                 }}
-                                                className={`flex-1 py-3 rounded-2xl border flex items-center justify-center gap-2 transition-all ${gender === 'male' ? 'bg-cyan-600 border-cyan-600 text-white shadow-[0_0_20px_rgba(8,145,178,0.4)] scale-[1.02]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                                                className={`flex-1 py-2.5 sm:py-3 rounded-2xl border flex items-center justify-center gap-2 transition-all ${gender === 'male' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold shadow-[0_0_15px_rgba(8,145,178,0.25)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
                                             >
-                                                <Icon name="male" size={18} />
+                                                <Icon name="male" size={18} className={gender === 'male' ? 'text-cyan-400' : 'text-slate-400'} />
                                                 <span className="text-xs font-bold uppercase tracking-wider">Hombre</span>
+                                                {gender === 'male' && <Icon name="check" size={14} className="text-cyan-400 ml-0.5" />}
                                             </button>
                                         </div>
 
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 tracking-widest">Moneda Principal</label>
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-widest">Moneda Principal</label>
                                             <div className="relative group">
-                                                <Icon name="payments" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors pointer-events-none" />
+                                                <Icon name="payments" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
                                                 <select
                                                     value={currency}
                                                     onChange={(e) => setCurrency(e.target.value)}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-10 py-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium appearance-none cursor-pointer"
+                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-10 py-3 sm:py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium text-sm sm:text-base appearance-none cursor-pointer"
                                                 >
                                                     {[
                                                         {
@@ -381,26 +383,26 @@ export const LoginView: React.FC = () => {
                                                         </optgroup>
                                                     ))}
                                                 </select>
-                                                <Icon name="expand_more" size={20} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
+                                                <Icon name="expand_more" size={20} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                                             </div>
                                         </div>
                                     </>
                                 )}
 
                                 <div className="group relative">
-                                    <Icon name="mail" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <Icon name="mail" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                                     <input
                                         type="email"
                                         placeholder="Correo Electrónico"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 sm:py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium text-sm sm:text-base"
                                     />
                                 </div>
 
                                 <div className="group relative">
-                                    <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <Icon name="lock" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Contraseña"
@@ -408,12 +410,12 @@ export const LoginView: React.FC = () => {
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
                                         minLength={6}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-12 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-12 py-3 sm:py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium text-sm sm:text-base"
                                     />
                                     <button
                                         type="button"
                                         onClick={togglePasswordVisibility}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                                     >
                                         <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
                                     </button>
@@ -427,7 +429,7 @@ export const LoginView: React.FC = () => {
                                                 setIsRecovering(true);
                                                 triggerHaptic(ImpactStyle.Medium);
                                             }}
-                                            className="text-xs text-slate-500 hover:text-primary transition-colors font-bold"
+                                            className="text-xs text-slate-300 hover:text-primary transition-colors font-semibold"
                                         >
                                             ¿Olvidaste tu contraseña?
                                         </button>
@@ -443,7 +445,7 @@ export const LoginView: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="mt-2 w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-neon transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 animate-gradient-shift"
+                                    className="mt-1 w-full bg-primary text-white font-bold py-3.5 sm:py-4 rounded-2xl shadow-neon transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 animate-gradient-shift"
                                 >
                                     {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" /> : isRegistering ? 'Comenzar Ahora' : 'Acceder'}
                                     <Icon name="arrow_forward" size={20} />
@@ -456,7 +458,7 @@ export const LoginView: React.FC = () => {
                                             handleBiometricLogin();
                                             triggerHaptic(ImpactStyle.Heavy);
                                         }}
-                                        className="w-full bg-white/5 border border-white/10 text-white font-bold py-4 rounded-2xl hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-3"
+                                        className="w-full bg-white/5 border border-white/10 text-white font-bold py-3.5 sm:py-4 rounded-2xl hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-3"
                                     >
                                         <Icon name="fingerprint" size={24} className="text-primary" />
                                         Entrar con Huella
@@ -464,10 +466,10 @@ export const LoginView: React.FC = () => {
                                 )}
                             </form>
 
-                            <div className="my-6 flex items-center w-full gap-4">
-                                <div className="h-px bg-white/5 flex-1" />
-                                <span className="text-[10px] text-slate-700 uppercase tracking-widest font-black">O continúa con</span>
-                                <div className="h-px bg-white/5 flex-1" />
+                            <div className="my-4 sm:my-6 flex items-center w-full gap-4">
+                                <div className="h-px bg-white/10 flex-1" />
+                                <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black">O continúa con</span>
+                                <div className="h-px bg-white/10 flex-1" />
                             </div>
 
                             <button
@@ -475,7 +477,7 @@ export const LoginView: React.FC = () => {
                                     signInWithGoogle();
                                     triggerHaptic(ImpactStyle.Medium);
                                 }}
-                                className="w-full bg-white text-slate-900 font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+                                className="w-full bg-white text-slate-900 font-bold py-3.5 sm:py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
                             >
                                 <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
                                 Google
@@ -483,7 +485,7 @@ export const LoginView: React.FC = () => {
                         </div>
                     </div>
 
-                    <p className="mt-8 text-center text-sm text-slate-500 font-medium pb-8 lg:pb-0">
+                    <p className="mt-6 text-center text-sm text-slate-400 font-medium pb-6 lg:pb-0">
                         {isRegistering ? '¿Ya tienes una cuenta?' : '¿Nuevo en RegistBar?'}
                         <button
                             onClick={toggleRegister}
@@ -513,13 +515,13 @@ export const LoginView: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-white/10 rounded-t-[2.5rem] z-[101] p-8 pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.5)] lg:max-w-md lg:mx-auto lg:rounded-[2.5rem] lg:bottom-12 lg:border"
+                            className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-white/10 rounded-t-[2.5rem] z-[101] p-6 sm:p-8 pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.5)] lg:max-w-md lg:mx-auto lg:rounded-[2.5rem] lg:bottom-12 lg:border"
                         >
-                            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8 hidden lg:block"></div>
+                            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-6 hidden lg:block"></div>
                             
-                            <div className="mb-8">
+                            <div className="mb-6 text-center">
                                 <h2 className="text-2xl font-bold text-white mb-2">Recuperar Acceso</h2>
-                                <p className="text-slate-500 text-sm text-center">Te enviaremos un enlace de recuperación.</p>
+                                <p className="text-slate-400 text-sm">Te enviaremos un enlace seguro a tu correo.</p>
                             </div>
 
                             <form 
@@ -530,14 +532,14 @@ export const LoginView: React.FC = () => {
                                 className="flex flex-col gap-4"
                             >
                                 <div className="group relative">
-                                    <Icon name="mail" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <Icon name="mail" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                                     <input
                                         type="email"
                                         placeholder="Correo Electrónico"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white/10 transition-all font-medium"
                                     />
                                 </div>
 
@@ -550,7 +552,7 @@ export const LoginView: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="mt-2 w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-neon transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+                                    className="mt-1 w-full bg-primary text-white font-bold py-3.5 rounded-2xl shadow-neon transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
                                 >
                                     {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" /> : 'Enviar Enlace'}
                                 </button>
@@ -561,7 +563,7 @@ export const LoginView: React.FC = () => {
                                         setIsRecovering(false);
                                         triggerHaptic(ImpactStyle.Light);
                                     }}
-                                    className="mt-2 text-sm text-slate-500 hover:text-white transition-colors py-2"
+                                    className="w-full py-3 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 font-semibold text-sm transition-all min-h-[44px] flex items-center justify-center"
                                 >
                                     Cancelar
                                 </button>

@@ -366,119 +366,122 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-background-light font-display pt-[calc(env(safe-area-inset-top)+1rem)]">
         {/* Top Gradient Blob */}
         <div className="fixed top-0 left-0 right-0 h-[500px] w-full -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-primary/20 blur-[100px] rounded-full mix-blend-multiply opacity-70 animate-blob"></div>
-          <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-accent/20 blur-[100px] rounded-full mix-blend-multiply opacity-70 animate-blob animation-delay-2000"></div>
-          <div className="absolute top-[-40%] left-[20%] w-[70%] h-[70%] bg-pink-300/20 blur-[100px] rounded-full mix-blend-multiply opacity-70 animate-blob animation-delay-4000"></div>
+          <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-primary/15 blur-[120px] rounded-full mix-blend-multiply opacity-60 animate-blob"></div>
+          <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-accent/15 blur-[120px] rounded-full mix-blend-multiply opacity-60 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-[-40%] left-[20%] w-[70%] h-[70%] bg-indigo-300/15 blur-[120px] rounded-full mix-blend-multiply opacity-60 animate-blob animation-delay-4000"></div>
         </div>
 
-        {/* Top App Bar - Only for Home */}
-        {activeTab === Tab.Home && (
-          <header className="relative z-20 flex items-center justify-between px-6 py-6 bg-transparent transition-colors">
-            <div className="flex items-center gap-3">
-              <div 
-                className="relative group cursor-pointer transition-transform active:scale-90 hover:scale-105"
-                onClick={() => setShowProfilePhoto(true)}
-              >
-                <div
-                  className="bg-center bg-no-repeat bg-cover rounded-full size-12 ring-2 ring-white shadow-md border-2 border-slate-100 transition-shadow"
-                  style={{ backgroundImage: `url("${user.user_metadata.avatar_url || 'https://ui-avatars.com/api/?name=User&background=random'}")` }}
-                ></div>
-                {/* Status indicator */}
-                <div className="absolute bottom-0 right-0 size-3.5 bg-green-500 rounded-full border-2 border-white"></div>
+        {/* Centered App Container for Responsive Polish */}
+        <div className="w-full max-w-2xl lg:max-w-4xl mx-auto px-4 sm:px-6 transition-all">
+          {/* Top App Bar - Only for Home */}
+          {activeTab === Tab.Home && (
+            <header className="relative z-20 flex items-center justify-between py-4 sm:py-6 bg-transparent transition-colors">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="relative group cursor-pointer transition-transform active:scale-90 hover:scale-105"
+                  onClick={() => setShowProfilePhoto(true)}
+                >
+                  <div
+                    className="bg-center bg-no-repeat bg-cover rounded-full size-12 ring-2 ring-white shadow-md border-2 border-slate-100 transition-shadow"
+                    style={{ backgroundImage: `url("${user.user_metadata.avatar_url || 'https://ui-avatars.com/api/?name=User&background=random'}")` }}
+                  ></div>
+                  {/* Status indicator */}
+                  <div className="absolute bottom-0 right-0 size-3.5 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div data-tour="notification-bell">
+              <div className="flex items-center gap-3">
+                <div data-tour="notification-bell">
+                  <NotificationBell onClick={() => setShowNotifications(true)} />
+                </div>
+                <button
+                  onClick={signOut}
+                  className="flex items-center justify-center size-12 rounded-full bg-white shadow-soft hover:shadow-lg transition-all active:scale-95 text-red-500"
+                  title="Cerrar Sesión"
+                >
+                  <Icon name="logout" size={22} />
+                </button>
+              </div>
+            </header>
+          )}
+
+          {/* Global Floating Notification Bell (Visible on non-home tabs) */}
+          {activeTab !== Tab.Home && (
+            <div className="absolute top-6 right-6 md:right-10 z-40 flex gap-3 pointer-events-none">
+              <div className="pointer-events-auto">
                 <NotificationBell onClick={() => setShowNotifications(true)} />
               </div>
-              <button
-                onClick={signOut}
-                className="flex items-center justify-center size-12 rounded-full bg-white shadow-soft hover:shadow-lg transition-all active:scale-95 text-red-500"
-                title="Cerrar Sesión"
-              >
-                <Icon name="logout" size={22} />
-              </button>
             </div>
-          </header>
-        )}
+          )}
 
-        {/* Global Floating Notification Bell (Visible on non-home tabs) */}
-        {activeTab !== Tab.Home && (
-          <div className="absolute top-6 right-20 z-40 flex gap-3 pointer-events-none">
-            <div className="pointer-events-auto">
-              <NotificationBell onClick={() => setShowNotifications(true)} />
-            </div>
-          </div>
-        )}
+          {/* Profile Photo Modal */}
+          <ProfilePhotoModal 
+            isOpen={showProfilePhoto} 
+            onClose={() => setShowProfilePhoto(false)} 
+            currentAvatarUrl={user?.user_metadata?.avatar_url}
+            userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || "Usuario"}
+          />
 
-        {/* Profile Photo Modal */}
-        <ProfilePhotoModal 
-          isOpen={showProfilePhoto} 
-          onClose={() => setShowProfilePhoto(false)} 
-          currentAvatarUrl={user?.user_metadata?.avatar_url}
-          userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || "Usuario"}
-        />
-
-        {/* Main Content */}
-        <main className="flex flex-col gap-6 px-4 pt-2 pb-32">
-          <AnimatePresence mode='wait'>
-            {activeTab === Tab.Home && (
-              <motion.div
-                key="home"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col gap-6"
-              >
-                <section className="flex flex-col gap-4" data-tour="balance-card">
-                  <FiscalSavingsCard grossIncome={totalIncome} netIncome={totalGrossIncome} />
-                </section>
-
-                {savingsGoal && (
-                  <section className="flex flex-col gap-3">
-                    <SavingsGoalCard
-                      currentSaved={savingsGoal.current}
-                      savingsGoal={savingsGoal.target}
-                      savingsGoalName={savingsGoal.name}
-                      onGoalUpdated={fetchData}
-                    />
+          {/* Main Content */}
+          <main className="flex flex-col gap-6 pt-2 pb-32">
+            <AnimatePresence mode='wait'>
+              {activeTab === Tab.Home && (
+                <motion.div
+                  key="home"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex flex-col gap-6"
+                >
+                  <section className="flex flex-col gap-4" data-tour="balance-card">
+                    <FiscalSavingsCard grossIncome={totalIncome} netIncome={totalGrossIncome} />
                   </section>
-                )}
 
-                <section data-tour="kpi-grid">
-                  <KpiGrid items={kpis} />
-                </section>
+                  {savingsGoal && (
+                    <section className="flex flex-col gap-3">
+                      <SavingsGoalCard
+                        currentSaved={savingsGoal.current}
+                        savingsGoal={savingsGoal.target}
+                        savingsGoalName={savingsGoal.name}
+                        onGoalUpdated={fetchData}
+                      />
+                    </section>
+                  )}
 
-                <OnboardingChecklist 
-                  userData={user?.user_metadata} 
-                  transactions={recentTransactions} 
-                  onAction={(type) => {
-                    if (type === 'new-service') setShowNewService(true);
-                    if (type === 'advisor') setActiveTab(Tab.Advisor);
-                    if (type === 'profile') setActiveTab(Tab.Profile);
-                  }}
-                />
+                  <section data-tour="kpi-grid">
+                    <KpiGrid items={kpis} />
+                  </section>
 
-                <section className="mt-2">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 px-1">Últimos Ingresos</h3>
-                  <TransactionsList transactions={recentTransactions} onEdit={(tx) => setEditingTransaction(tx)} />
-                </section>
-              </motion.div>
-            )}
+                  <OnboardingChecklist 
+                    userData={user?.user_metadata} 
+                    transactions={recentTransactions} 
+                    onAction={(type) => {
+                      if (type === 'new-service') setShowNewService(true);
+                      if (type === 'advisor') setActiveTab(Tab.Advisor);
+                      if (type === 'profile') setActiveTab(Tab.Profile);
+                    }}
+                  />
 
-            {activeTab === Tab.Income && <IncomeView onGoToReports={() => setActiveTab(Tab.Reports)} />}
-            {activeTab === Tab.Advisor && <AdvisorView />}
-            {activeTab === Tab.Profile && <ProfileView />}
+                  <section className="mt-2">
+                    <h3 className="text-base font-bold text-slate-900 mb-4 px-1">Últimos Ingresos</h3>
+                    <TransactionsList transactions={recentTransactions} onEdit={(tx) => setEditingTransaction(tx)} />
+                  </section>
+                </motion.div>
+              )}
 
-            {activeTab === Tab.Reports && <ReportsView />}
-          </AnimatePresence>
-        </main>
+              {activeTab === Tab.Income && <IncomeView onGoToReports={() => setActiveTab(Tab.Reports)} />}
+              {activeTab === Tab.Advisor && <AdvisorView />}
+              {activeTab === Tab.Profile && <ProfileView />}
+
+              {activeTab === Tab.Reports && <ReportsView />}
+            </AnimatePresence>
+          </main>
+        </div>
 
         {/* FAB - Only for Home */}
         {activeTab === Tab.Home && (
           <div
-            className="fixed right-5 z-50 flex flex-col items-end gap-3 pointer-events-none"
-            style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+            className="fixed right-5 md:right-8 lg:right-[max(2rem,calc((100vw-56rem)/2+1rem))] z-50 flex flex-col items-end gap-3 pointer-events-none"
+            style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom))' }}
           >
             {/* FAB Menu Options */}
             <div className={`flex flex-col gap-3 transition-all duration-300 origin-bottom-right relative z-50 pointer-events-auto ${isFabOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-75 translate-y-10 invisible'}`}>

@@ -225,28 +225,24 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, 
         )}
       </div>
 
-      {/* Custom Progress Bar */}
-      <div className="relative w-full h-3 bg-slate-100 dark:bg-black/20 rounded-full mb-3 mt-4">
-        {/* The Bar */}
-        <div
-          className={`absolute top-0 left-0 h-full rounded-full shadow-[0_0_15px_rgba(255,92,160,0.4)] transition-all duration-1000 ease-out ${isCompleted ? 'bg-yellow-400' : 'bg-primary'}`}
-          style={{ width: `${progress}%` }}
-        ></div>
-
-        {/* The Moving Indicator */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 transition-all duration-1000 ease-out z-10"
-          style={{ left: `${progress}%`, transform: 'translateX(-50%) translateY(100%)' }}
-        >
-          <div className="bg-slate-900 text-white px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm whitespace-nowrap before:content-[''] before:absolute before:left-1/2 before:-translate-x-1/2 before:bottom-full before:border-4 before:border-transparent before:border-b-slate-900">
-            {Math.round(progress)}%
-          </div>
-        </div>
+      {/* Custom Progress Bar with Clear Labels */}
+      <div className="flex justify-between items-center text-xs font-bold text-slate-500 mb-2 mt-4">
+        <span className="text-primary font-black text-sm bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+          {Math.round(progress)}% completado
+        </span>
+        <span className="text-slate-500 font-semibold">Meta: {format(savingsGoal)}</span>
       </div>
 
-      <div className="flex justify-between text-xs font-bold text-slate-400">
+      <div className="relative w-full h-3 bg-slate-100 dark:bg-black/20 rounded-full overflow-hidden mb-2">
+        <div
+          className={`h-full rounded-full shadow-[0_0_15px_rgba(255,92,160,0.4)] transition-all duration-1000 ease-out ${isCompleted ? 'bg-yellow-400' : 'bg-primary'}`}
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+
+      <div className="flex justify-between text-[11px] font-semibold text-slate-400">
         <span>0%</span>
-        <span>Meta: {format(savingsGoal)}</span>
+        <span>100%</span>
       </div>
 
       {/* Expanded Manual Input Section */}
