@@ -7,6 +7,9 @@ import { useToast } from '../contexts/ToastContext';
 import { motion } from 'framer-motion';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 const SANTIAGO_TZ = 'America/Santiago';
 
@@ -269,6 +272,77 @@ export const ReportsView: React.FC = () => {
         }
     };
 
+    // WhatsApp / Native Share Handler (Cierre de Caja)
+    const handleShareWhatsApp = async () => {
+        if (!user) {
+            showToast('No hay sesión activa', 'error');
+            return;
+        }
+        if (transactions.length === 0) {
+            showToast('No hay movimientos en este periodo para compartir', 'info');
+            return;
+        }
+
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await Haptics.impact({ style: ImpactStyle.Medium });
+            }
+        } catch {}
+
+        let userNameToUse = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Barbero';
+        const servicesCount = transactions.filter(t => t.type === 'income').length;
+        const suppliesTotal = transactions
+            .filter(t => t.category === 'supply')
+            .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+
+        const rentText = profileSettings?.expense_model === 'rent' && profileSettings.rent_amount > 0
+            ? `🏠 *Arriendo Salón:* ${format(profileSettings.rent_amount)}\n`
+            : '';
+
+        const shareMessage = `💈 *REGISTBAR - RESUMEN DE CIERRE* 🇨🇱\n` +
+            `👤 *Profesional:* ${userNameToUse}\n` +
+            `📅 *Periodo:* ${capitalizedMonth}\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💰 *Ventas Totales (Bruto):* ${format(totalIncome)}\n` +
+            `✂️ *Servicios Realizados:* ${servicesCount} registros\n` +
+            `🛒 *Gastos en Insumos:* ${format(suppliesTotal)}\n` +
+            rentText +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💵 *BALANCE NETO:* ${format(balance)}\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `✨ _Generado con RegistBar App_`;
+
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await Share.share({
+                    title: `Cierre de Caja - ${capitalizedMonth}`,
+                    text: shareMessage,
+                    dialogTitle: 'Compartir Cierre de Caja'
+                });
+                showToast('¡Cierre compartido!', 'success');
+            } else if (navigator.share) {
+                await navigator.share({
+                    title: `Cierre de Caja - ${capitalizedMonth}`,
+                    text: shareMessage
+                });
+                showToast('¡Cierre compartido!', 'success');
+            } else {
+                const encoded = encodeURIComponent(shareMessage);
+                window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+                showToast('Abriendo WhatsApp...', 'success');
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                try {
+                    await navigator.clipboard.writeText(shareMessage);
+                    showToast('Resumen copiado al portapapeles', 'success');
+                } catch {
+                    showToast('No se pudo compartir', 'error');
+                }
+            }
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 animate-fade-in-up">
             {/* Header with Month Selection */}
@@ -321,13 +395,24 @@ export const ReportsView: React.FC = () => {
             {/* Action Bar */}
             <div className="flex items-center justify-between px-2">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Historial de Registros</h3>
-                <button
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 hover:border-primary/30 hover:text-primary transition-all shadow-sm active:scale-95"
-                    onClick={handleExport}
-                >
-                    <Icon name="download" size={16} />
-                    EXPORTAR
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold shadow-md shadow-emerald-500/20 hover:bg-emerald-600 transition-all active:scale-95 cursor-pointer"
+                        onClick={handleShareWhatsApp}
+                        title="Compartir Cierre por WhatsApp"
+                    >
+                        <Icon name="share" size={15} />
+                        <span>WhatsApp</span>
+                    </button>
+                    <button
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 hover:border-primary/30 hover:text-primary transition-all shadow-sm active:scale-95 cursor-pointer"
+                        onClick={handleExport}
+                        title="Exportar Reporte PDF"
+                    >
+                        <Icon name="download" size={15} />
+                        <span>PDF</span>
+                    </button>
+                </div>
             </div>
 
             {/* Transactions List */}
