@@ -43,6 +43,40 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
 
+        // 1. Server-Side Rate Limit / Quota Validation (SEC-02)
+        let authenticatedUser: any = null;
+        let userProfile: any = null;
+
+        if (authHeader) {
+            const token = authHeader.replace('Bearer ', '').trim();
+            const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+            if (!userError && userData?.user) {
+                authenticatedUser = userData.user;
+                const { data: profile } = await supabaseAdmin
+                    .from('profiles')
+                    .select('subscription_status, ocr_usage_count')
+                    .eq('id', authenticatedUser.id)
+                    .single();
+                userProfile = profile;
+
+                // Enforce Free Tier Quota Limit (5 scans/month)
+                const isPro = userProfile?.subscription_status === 'pro' || userProfile?.subscription_status === 'admin';
+                const currentCount = Number(userProfile?.ocr_usage_count || 0);
+
+                if (!isPro && currentCount >= 5) {
+                    return new Response(JSON.stringify({
+                        error: 'QUOTA_EXCEEDED',
+                        message: 'Has alcanzado el límite gratuito de 5 escaneos OCR este mes. Pásate al Plan Pro para escaneos ilimitados.',
+                        subscription_status: 'free',
+                        ocr_usage_count: currentCount
+                    }), {
+                        status: 402,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                }
+            }
+        }
+
         // Fetch Groq API Key from database
         const { data: configData } = await supabaseAdmin
             .from('app_config')
@@ -109,6 +143,20 @@ Deno.serve(async (req) => {
         }
 
         console.log('[SCAN] Extracted Data:', parsedResult);
+
+        // Atomically increment OCR usage count for free users
+        if (authenticatedUser && userProfile && userProfile.subscription_status !== 'pro' && userProfile.subscription_status !== 'admin') {
+            try {
+                const nextCount = (Number(userProfile.ocr_usage_count) || 0) + 1;
+                await supabaseAdmin
+                    .from('profiles')
+                    .update({ ocr_usage_count: nextCount })
+                    .eq('id', authenticatedUser.id);
+                console.log(`[SCAN] Incremented OCR count for user ${authenticatedUser.id} to ${nextCount}`);
+            } catch (incErr) {
+                console.warn('[SCAN] Failed to increment ocr_usage_count:', incErr);
+            }
+        }
 
         return new Response(JSON.stringify(parsedResult), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

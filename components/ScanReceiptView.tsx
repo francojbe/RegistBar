@@ -151,7 +151,21 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
                 body: { image: base64Image }
             });
 
-            if (error) throw error;
+            if (error) {
+                // If HTTP 402 / Quota exceeded
+                if (error.message?.includes('QUOTA') || error.status === 402) {
+                    showToast('Límite de 5 escaneos gratuitos alcanzado. Pásate al Plan Pro.', 'info');
+                    setIsAnalyzing(false);
+                    return;
+                }
+                throw error;
+            }
+
+            if (data?.error === 'QUOTA_EXCEEDED') {
+                showToast(data.message || 'Límite de escaneos mensuales alcanzado.', 'info');
+                setIsAnalyzing(false);
+                return;
+            }
 
             if (data) {
                 if (data.monto_total) setAmount(Number(data.monto_total));
