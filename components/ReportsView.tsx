@@ -10,6 +10,7 @@ import { OfflineService } from '../OfflineService';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { formatInTimeZone } from 'date-fns-tz';
 
 const SANTIAGO_TZ = 'America/Santiago';
 
