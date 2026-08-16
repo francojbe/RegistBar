@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Icon } from './Icons';
 import LightRays from './LightRays';
+import { trackEvent } from '../utils/analytics';
 
 export const CompleteProfileView: React.FC = () => {
     const [loading, setLoading] = useState(false);
@@ -25,6 +26,11 @@ export const CompleteProfileView: React.FC = () => {
             });
 
             if (error) throw error;
+
+            trackEvent('onboarding_completed', {
+                selected_gender: gender,
+                theme: gender === 'male' ? 'ocean' : 'pink'
+            });
 
             // The AuthContext will automatically detect the user update 
             // and App.tsx will re-render, showing the main app.

@@ -4,13 +4,14 @@ import { Transaction } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { formatInTimeZone } from 'date-fns-tz';
+import { trackEvent, getBalanceBucket } from '../utils/analytics';
 
 const SANTIAGO_TZ = 'America/Santiago';
 
@@ -19,24 +20,19 @@ export const ReportsView: React.FC = () => {
     const { showToast } = useToast();
     const { format } = useCurrency();
 
-
     // 1. Initialize from cache if available to prevent 0/loading flash
-    // We use a specific cache key for the CURRENT month/view configuration if possible, 
-    // but for simplicity we can cache the last viewed 'current month' data.
     const [transactions, setTransactions] = useState<Transaction[]>(() => {
         const saved = localStorage.getItem('reports_cache_v1');
-        // Only use cache if it was for the same month/year we are initializing (today)
-        // But complex date logic in init is risky. Let's just load it.
         return saved ? JSON.parse(saved).transactions || [] : [];
     });
 
     const [loading, setLoading] = useState(() => {
-        // If we have data, we are not "loading" visually (we refresh in bg)
         return !localStorage.getItem('reports_cache_v1');
     });
 
     // Month/Year Selection
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showShareModal, setShowShareModal] = useState(false);
 
     // Profile Expense Settings
     const [profileSettings, setProfileSettings] = useState<{
@@ -73,10 +69,6 @@ export const ReportsView: React.FC = () => {
             setLoading(true);
         }
 
-        // Calculate start and end of month
-        const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).toISOString();
-        const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59).toISOString();
-
         try {
             // Refactored to use Fused Data (Local + Cloud)
             const fusedData = await OfflineService.getFusedTransactions(user.id);
@@ -97,6 +89,13 @@ export const ReportsView: React.FC = () => {
                 month: selectedDate.getMonth(),
                 year: selectedDate.getFullYear()
             }));
+
+            // Track daily_close_viewed (ANA-01)
+            const monthStr = formatInTimeZone(selectedDate, SANTIAGO_TZ, 'yyyy-MM');
+            trackEvent('daily_close_viewed', {
+                period_month: monthStr,
+                transaction_count: monthData.length
+            });
 
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -273,14 +272,11 @@ export const ReportsView: React.FC = () => {
         }
     };
 
-    // WhatsApp / Native Share Handler (Cierre de Caja)
-    const handleShareWhatsApp = async () => {
+    // WhatsApp / Native Share Handler (Cierre de Caja - Semanal o Mensual)
+    const executeShare = async (periodType: 'weekly' | 'monthly') => {
+        setShowShareModal(false);
         if (!user) {
             showToast('No hay sesión activa', 'error');
-            return;
-        }
-        if (transactions.length === 0) {
-            showToast('No hay movimientos en este periodo para compartir', 'info');
             return;
         }
 
@@ -290,40 +286,96 @@ export const ReportsView: React.FC = () => {
             }
         } catch {}
 
-        let userNameToUse = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Barbero';
-        const servicesCount = transactions.filter(t => t.type === 'income').length;
-        const suppliesTotal = transactions
-            .filter(t => t.category === 'supply')
-            .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+        let filteredTxs: Transaction[] = [];
+        let periodLabel = '';
+        let calculatedRent = 0;
 
-        const rentText = profileSettings?.expense_model === 'rent' && profileSettings.rent_amount > 0
-            ? `🏠 *Arriendo Salón:* ${format(profileSettings.rent_amount)}\n`
+        if (periodType === 'weekly') {
+            // Last 7 days in Santiago time
+            const now = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(now.getDate() - 7);
+            
+            // Fused data lookup across all available transactions
+            const allTxs = await OfflineService.getFusedTransactions(user.id);
+            filteredTxs = allTxs.filter(t => new Date(t.rawDate) >= sevenDaysAgo);
+            periodLabel = `Últimos 7 Días (${formatInTimeZone(sevenDaysAgo, SANTIAGO_TZ, 'dd/MM')} - ${formatInTimeZone(now, SANTIAGO_TZ, 'dd/MM')})`;
+            
+            if (profileSettings?.expense_model === 'rent' && profileSettings.rent_amount > 0) {
+                // If rent is monthly, weekly is 1/4; if weekly, full rent_amount
+                calculatedRent = profileSettings.rent_period === 'weekly' 
+                    ? profileSettings.rent_amount 
+                    : Math.round(profileSettings.rent_amount / 4);
+            }
+        } else {
+            // Monthly (selectedDate)
+            filteredTxs = transactions;
+            periodLabel = capitalizedMonth;
+            
+            if (profileSettings?.expense_model === 'rent' && profileSettings.rent_amount > 0) {
+                const multiplier = profileSettings.rent_period === 'weekly' ? 4 : 1;
+                calculatedRent = profileSettings.rent_amount * multiplier;
+            }
+        }
+
+        if (filteredTxs.length === 0) {
+            showToast('No hay movimientos en este periodo para compartir', 'info');
+            return;
+        }
+
+        const shareIncome = filteredTxs
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+        const shareExpenses = filteredTxs
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+
+        const shareSupplies = filteredTxs
+            .filter(t => t.category === 'supply')
+            .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+
+        const servicesCount = filteredTxs.filter(t => t.type === 'income' && t.category === 'service').length;
+        const totalShareExpenses = shareExpenses + calculatedRent;
+        const shareBalance = shareIncome - totalShareExpenses;
+
+        let userNameToUse = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Barbero';
+
+        const rentText = calculatedRent > 0
+            ? `🏠 *Arriendo Salón:* ${format(calculatedRent)}\n`
             : '';
 
-        const shareMessage = `💈 *REGISTBAR - RESUMEN DE CIERRE* 🇨🇱\n` +
+        const shareMessage = `💈 *REGISTBAR - ${periodType === 'weekly' ? 'CIERRE SEMANAL' : 'RESUMEN MENSUAL'}* 🇨🇱\n` +
             `👤 *Profesional:* ${userNameToUse}\n` +
-            `📅 *Periodo:* ${capitalizedMonth}\n` +
+            `📅 *Periodo:* ${periodLabel}\n` +
             `━━━━━━━━━━━━━━━━━━━━\n` +
-            `💰 *Ventas Totales (Bruto):* ${format(totalIncome)}\n` +
-            `✂️ *Servicios Realizados:* ${servicesCount} registros\n` +
-            `🛒 *Gastos en Insumos:* ${format(suppliesTotal)}\n` +
+            `💰 *Ingresos Totales:* ${format(shareIncome)}\n` +
+            `✂️ *Servicios Realizados:* ${servicesCount} cortes\n` +
+            `🛒 *Gastos en Insumos:* ${format(shareSupplies)}\n` +
             rentText +
             `━━━━━━━━━━━━━━━━━━━━\n` +
-            `💵 *BALANCE NETO:* ${format(balance)}\n` +
+            `💵 *BALANCE NETO:* ${format(shareBalance)}\n` +
             `━━━━━━━━━━━━━━━━━━━━\n` +
             `✨ _Generado con RegistBar App_`;
+
+        // Track Analytics Event (ANA-01)
+        trackEvent('whatsapp_share_clicked', {
+            period_type: periodType,
+            services_count: servicesCount,
+            net_balance_bucket: getBalanceBucket(shareBalance)
+        });
 
         try {
             if (Capacitor.isNativePlatform()) {
                 await Share.share({
-                    title: `Cierre de Caja - ${capitalizedMonth}`,
+                    title: `Cierre de Caja - ${periodLabel}`,
                     text: shareMessage,
-                    dialogTitle: 'Compartir Cierre de Caja'
+                    dialogTitle: 'Compartir Cierre'
                 });
                 showToast('¡Cierre compartido!', 'success');
             } else if (navigator.share) {
                 await navigator.share({
-                    title: `Cierre de Caja - ${capitalizedMonth}`,
+                    title: `Cierre de Caja - ${periodLabel}`,
                     text: shareMessage
                 });
                 showToast('¡Cierre compartido!', 'success');
@@ -399,7 +451,7 @@ export const ReportsView: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <button
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold shadow-md shadow-emerald-500/20 hover:bg-emerald-600 transition-all active:scale-95 cursor-pointer"
-                        onClick={handleShareWhatsApp}
+                        onClick={() => setShowShareModal(true)}
                         title="Compartir Cierre por WhatsApp"
                     >
                         <Icon name="share" size={15} />
@@ -458,6 +510,72 @@ export const ReportsView: React.FC = () => {
                     ))
                 )}
             </div>
+
+            {/* REP-01: Modal Selector Cierre Semanal vs Mensual */}
+            <AnimatePresence>
+                {showShareModal && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, y: 50 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 50 }}
+                            className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl flex flex-col gap-4 border border-slate-100"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                        <Icon name="share" size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 text-base">Compartir Cierre</h3>
+                                        <p className="text-xs text-slate-400">Elige el periodo para WhatsApp</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowShareModal(false)}
+                                    className="p-2 -mr-2 text-slate-400 hover:text-slate-700"
+                                >
+                                    <Icon name="close" size={20} />
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-3 my-2">
+                                <button
+                                    onClick={() => executeShare('weekly')}
+                                    className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 flex items-center justify-between text-left transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                                            <Icon name="date_range" size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-900 text-sm">Cierre Semanal</p>
+                                            <p className="text-[11px] text-slate-400">Últimos 7 días (ideal para rendir al salón)</p>
+                                        </div>
+                                    </div>
+                                    <Icon name="chevron_right" size={18} className="text-slate-300" />
+                                </button>
+
+                                <button
+                                    onClick={() => executeShare('monthly')}
+                                    className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 flex items-center justify-between text-left transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                                            <Icon name="calendar_month" size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-900 text-sm">Cierre Mensual</p>
+                                            <p className="text-[11px] text-slate-400">{capitalizedMonth}</p>
+                                        </div>
+                                    </div>
+                                    <Icon name="chevron_right" size={18} className="text-slate-300" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SubscriptionPaywall } from './SubscriptionPaywall';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
+import { trackEvent } from '../utils/analytics';
 
 interface Message {
     id: string;
@@ -67,6 +68,12 @@ export const AdvisorView: React.FC = () => {
         if (!textToSend.trim() || isLoading) return;
 
         triggerHaptic();
+
+        // Track Telemetry (ANA-01)
+        trackEvent('ai_advisor_prompted', {
+            is_pro: !!isPro,
+            is_quick_prompt: !!queryText
+        });
 
         const userMsg: Message = { id: Date.now().toString(), role: 'user', text: textToSend.trim(), timestamp: new Date() };
         const newHistory = [...messages, userMsg];

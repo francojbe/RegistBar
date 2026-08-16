@@ -109,7 +109,11 @@ REGLAS DE ORO DE RESPUESTA:
 4. INTERNACIONALIZACIÓN Y MONEDA:
    - Si 'user_currency' es CLP: $1.200 (sin decimales).
    - Si 'user_currency' es USD: $1,200.50.
-   - Si 'user_currency' es EUR: 1.200,50 €.`;
+   - Si 'user_currency' es EUR: 1.200,50 €.
+
+5. GUARDRAILS DE INCERTIDUMBRE Y DESCARGO LEGAL (AI-01):
+   - Si no hay gastos registrados en el periodo ('expense' = 0), incluye una breve nota recordando que si tuvo compras de insumos o arriendo no anotados, su ganancia líquida real de bolsillo será menor.
+   - Si el usuario pregunta sobre impuestos, boletas de honorarios o retenciones del SII, finaliza SIEMPRE con la advertencia: "⚠️ *Estimación referencial:* Consulta con tu contador para declaraciones oficiales ante el SII.".`;
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -185,7 +189,7 @@ Deno.serve(async (req) => {
                 }
 
                 const { data } = await q;
-                const { data: profile } = await supabaseClient.from('profiles').select('first_name, currency').eq('id', user.id).maybeSingle();
+                const { data: profile } = await supabaseClient.from('profiles').select('first_name, currency, expense_model, commission_rate, rent_amount').eq('id', user.id).maybeSingle();
                 const { data: goals } = await supabaseClient.from('goals').select('title, target_amount, current_amount, deadline').eq('user_id', user.id);
 
                 const income_txs = data?.filter(t => t.type === 'income') || [];
@@ -208,8 +212,16 @@ Deno.serve(async (req) => {
                     }
                 });
 
+                // Uncertainty context check (AI-01)
+                const hasZeroExpenses = exp === 0;
+                const expenseWarning = hasZeroExpenses 
+                    ? "AVISO_IMPORTANTE: El usuario tiene $0 gastos registrados en este periodo. Recuerda advertirle que si compró insumos o pagó arriendo no anotados, su ganancia real será menor."
+                    : "Gastos registrados con normalidad.";
+
                 return {
                     user_name: profile?.first_name || "Usuario",
+                    business_model: profile?.expense_model === 'rent' ? `Arriendo fijo ($${profile?.rent_amount || 0})` : `Comisión salón (${profile?.commission_rate || 40}%)`,
+                    expense_data_status: expenseWarning,
                     goals_text: goals?.map(g => `- ${g.title}: $${g.current_amount || 0} / $${g.target_amount} (Vence: ${g.deadline})`).join("\n") || "Sin metas activas.",
                     income: inc, expense: exp, balance: inc - exp,
                     top_expenses_text: Object.entries(breakdown).sort(([, a], [, b]) => b - a).slice(0, 15).map(([k, v]) => `- ${k}: $${v}`).join("\n"),

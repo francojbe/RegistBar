@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { SubscriptionPaywall } from './SubscriptionPaywall';
 import { OfflineService } from '../OfflineService';
+import { trackEvent } from '../utils/analytics';
 
 interface ScanReceiptViewProps {
     onClose: () => void;
@@ -205,6 +206,11 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            trackEvent('ocr_scan_attempted', {
+                source: file.type || 'image',
+                file_size_kb: Math.round(file.size / 1024)
+            });
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 setCapturedImage(reader.result as string);
@@ -278,6 +284,14 @@ export const ScanReceiptView: React.FC<ScanReceiptViewProps> = ({ onClose }) => 
 
             if (error) throw error;
             
+            // Track Telemetry Event (ANA-01)
+            trackEvent('ocr_scan_confirmed', {
+                transaction_type: transactionType,
+                category: finalCategory,
+                has_receipt_url: !!receiptUrl,
+                offline: !!offline
+            });
+
             showToast(offline ? 'Guardado localmente (Sin conexión)' : 'Guardado correctamente', 'success');
             onClose();
             

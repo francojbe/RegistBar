@@ -38,6 +38,7 @@ import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { useDashboardModals } from './hooks/useDashboardModals';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { usePasswordRecovery } from './hooks/usePasswordRecovery';
+import { trackEvent } from './utils/analytics';
 
 const SANTIAGO_TZ = 'America/Santiago';
 
@@ -74,6 +75,13 @@ const App: React.FC = () => {
   const [totalSupplyExpense, setTotalSupplyExpense] = useState(0);
   const [averageTicket, setAverageTicket] = useState(0);
   const [savingsGoal, setSavingsGoal] = useState<{ current: number, target: number, name: string } | null>(null);
+
+  // Telemetry: App Install Opened (ANA-01)
+  React.useEffect(() => {
+    trackEvent('app_install_opened', {
+      app_version: '1.2.0'
+    });
+  }, []);
 
   // Initialize Theme
   React.useEffect(() => {
@@ -161,6 +169,15 @@ const App: React.FC = () => {
       const fused = await OfflineService.getFusedTransactions(user.id, transactions);
 
       setRecentTransactions(fused.slice(0, 5)); // Show only last 5 in list
+
+      // Track first_transaction_logged (ANA-01)
+      if (fused.length === 1 && localStorage.getItem('has_logged_first_tx') !== 'true') {
+        localStorage.setItem('has_logged_first_tx', 'true');
+        trackEvent('first_transaction_logged', {
+          method: fused[0].category === 'service' ? 'service' : 'expense',
+          category: fused[0].category
+        });
+      }
 
       // 2. Fetch Goals
       const { data: goalData, error: goalError } = await supabase
