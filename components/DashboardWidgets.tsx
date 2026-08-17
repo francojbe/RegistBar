@@ -11,7 +11,83 @@ import { formatInTimeZone, toDate } from 'date-fns-tz';
 
 const SANTIAGO_TZ = 'America/Santiago';
 
-// --- Savings Card (Now Income Accumulator with Period Switcher) ---
+const PERIOD_LABELS: Record<'weekly' | 'monthly' | 'yearly', { full: string; short: string }> = {
+  weekly: { full: 'Semana', short: 'Sem' },
+  monthly: { full: 'Mes', short: 'Mes' },
+  yearly: { full: 'Año', short: 'Año' }
+};
+
+interface PeriodDropdownProps {
+  value: 'weekly' | 'monthly' | 'yearly';
+  onChange: (period: 'weekly' | 'monthly' | 'yearly') => void;
+  size?: 'sm' | 'md';
+}
+
+export const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, size = 'md' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const options: ('weekly' | 'monthly' | 'yearly')[] = ['weekly', 'monthly', 'yearly'];
+
+  return (
+    <div className="relative inline-block text-left z-30" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-1.5 font-extrabold rounded-xl transition-all cursor-pointer select-none active:scale-95 border border-slate-200/60 ${
+          size === 'sm'
+            ? 'px-2 py-1 text-[11px] bg-slate-100/90 hover:bg-slate-200 text-slate-700'
+            : 'px-3 py-1.5 text-xs bg-slate-100/90 hover:bg-slate-200 text-slate-700 shadow-xs'
+        }`}
+      >
+        <span>{PERIOD_LABELS[value].full}</span>
+        <Icon name="expand_more" size={size === 'sm' ? 14 : 16} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-32 bg-white rounded-2xl shadow-xl border border-slate-100 p-1 z-50 animate-fade-in-up origin-top-right">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => {
+                onChange(opt);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer ${
+                value === opt
+                  ? 'bg-primary/10 text-primary font-bold'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span>{PERIOD_LABELS[opt].full}</span>
+              {value === opt && <Icon name="check" size={14} className="text-primary" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Savings Card (Now Income Accumulator with Period Dropdown) ---
 interface FiscalSavingsCardProps {
   transactions?: Transaction[];
   profileData?: {
@@ -35,7 +111,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
   const stats = React.useMemo(() => {
     if (!transactions || transactions.length === 0) {
       return {
-        title: period === 'weekly' ? 'Ganancia Neta (Semana)' : period === 'monthly' ? 'Ganancia Neta (Mes)' : 'Ganancia Neta (Año)',
+        title: 'Ganancia Neta',
         subtitle: 'Semana en curso',
         net: fallbackGross,
         gross: fallbackNet,
@@ -60,7 +136,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
     endOfWeek.setHours(23, 59, 59, 999);
 
     let filtered: Transaction[] = [];
-    let periodTitle = 'Ganancia Neta (Semana)';
+    let periodTitle = 'Ganancia Neta';
     let periodSubtitle = `${formatInTimeZone(startOfWeek, SANTIAGO_TZ, 'dd MMM')} - ${formatInTimeZone(endOfWeek, SANTIAGO_TZ, 'dd MMM')}`;
     let rentDeduction = 0;
 
@@ -69,7 +145,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
     const rentPeriod = profileData?.rent_period || 'monthly';
 
     if (period === 'weekly') {
-      periodTitle = 'Ganancia Neta (Semana)';
+      periodTitle = 'Ganancia Neta';
       filtered = transactions.filter(t => {
         const txDate = toDate(formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM-dd HH:mm:ss'), { timeZone: SANTIAGO_TZ });
         return txDate >= startOfWeek && txDate <= endOfWeek;
@@ -79,7 +155,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
         rentDeduction = rentPeriod === 'weekly' ? rentAmount : Math.round(rentAmount / 4);
       }
     } else if (period === 'monthly') {
-      periodTitle = 'Ganancia Neta (Mes)';
+      periodTitle = 'Ganancia Neta';
       const monthName = nowAtSantiago.toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: SANTIAGO_TZ });
       periodSubtitle = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
@@ -93,7 +169,7 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
       }
     } else {
       // Yearly
-      periodTitle = 'Ganancia Neta (Año)';
+      periodTitle = 'Ganancia Neta';
       periodSubtitle = `Año ${currentYear}`;
 
       filtered = transactions.filter(t => {
@@ -131,10 +207,10 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
   }, [transactions, profileData, period, fallbackGross, fallbackNet]);
 
   return (
-    <div className="w-full bg-white rounded-[2.5rem] p-6 sm:p-7 shadow-soft relative overflow-hidden group transition-all duration-300 border border-slate-100">
+    <div className="w-full bg-white rounded-[2.5rem] p-6 sm:p-7 shadow-soft relative overflow-visible group transition-all duration-300 border border-slate-100">
       <div className="relative z-10 flex flex-col gap-4">
-        {/* Header: Title + Period Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Header: Title + Period Dropdown */}
+        <div className="flex items-center justify-between gap-3">
           <div>
             <span className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-0.5">
               Ganancia Neta
@@ -144,23 +220,8 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
             </span>
           </div>
 
-          {/* Period Selector Tabs */}
-          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl self-start sm:self-auto">
-            {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer ${
-                  period === p
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {p === 'weekly' ? 'Semana' : p === 'monthly' ? 'Mes' : 'Año'}
-              </button>
-            ))}
-          </div>
+          {/* Period Dropdown */}
+          <PeriodDropdown value={period} onChange={setPeriod} size="md" />
         </div>
 
         {/* Main Number: Ganancia Neta */}
@@ -468,29 +529,14 @@ export const SupplyExpenseCard: React.FC<{ transactions?: Transaction[] }> = ({ 
   }, [transactions, period]);
 
   return (
-    <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-hidden border border-slate-100/80">
+    <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-visible border border-slate-100/80">
       <div className="flex justify-between items-start z-10">
         <div className="size-10 rounded-full flex items-center justify-center bg-orange-100 text-orange-600">
           <Icon name="shopping_bag" size={20} />
         </div>
 
-        {/* Period Selector Tabs */}
-        <div className="flex items-center p-0.5 bg-slate-100 rounded-lg">
-          {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPeriod(p)}
-              className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
-                period === p
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-700'
-              }`}
-            >
-              {p === 'weekly' ? 'Sem' : p === 'monthly' ? 'Mes' : 'Año'}
-            </button>
-          ))}
-        </div>
+        {/* Period Dropdown */}
+        <PeriodDropdown value={period} onChange={setPeriod} size="sm" />
       </div>
 
       <div className="z-10">
