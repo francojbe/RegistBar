@@ -452,7 +452,7 @@ const App: React.FC = () => {
                   exit={{ opacity: 0, y: -10 }}
                   className="flex flex-col gap-6"
                 >
-                  <section className="flex flex-col gap-4" data-tour="balance-card">
+                  <section className="flex flex-col gap-4 relative z-30" data-tour="balance-card">
                     <FiscalSavingsCard 
                       transactions={allFusedTransactions}
                       profileData={profileSettings}
@@ -462,7 +462,7 @@ const App: React.FC = () => {
                   </section>
 
                   {savingsGoal && (
-                    <section className="flex flex-col gap-3">
+                    <section className="flex flex-col gap-3 relative z-20">
                       <SavingsGoalCard
                         currentSaved={savingsGoal.current}
                         savingsGoal={savingsGoal.target}
@@ -472,7 +472,7 @@ const App: React.FC = () => {
                     </section>
                   )}
 
-                  <section data-tour="kpi-grid">
+                  <section data-tour="kpi-grid" className="relative z-10">
                     <KpiGrid items={kpis} transactions={allFusedTransactions} />
                   </section>
 

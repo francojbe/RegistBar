@@ -47,14 +47,14 @@ export const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange,
   const options: ('weekly' | 'monthly' | 'yearly')[] = ['weekly', 'monthly', 'yearly'];
 
   return (
-    <div className="relative inline-block text-left z-30" ref={dropdownRef}>
+    <div className={`relative inline-block text-left ${isOpen ? 'z-50' : 'z-20'}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 font-extrabold rounded-xl transition-all cursor-pointer select-none active:scale-95 border border-slate-200/60 ${
+        className={`flex items-center gap-1.5 font-extrabold rounded-xl transition-all cursor-pointer select-none active:scale-95 border border-slate-200/80 bg-slate-100 hover:bg-slate-200 text-slate-700 ${
           size === 'sm'
-            ? 'px-2 py-1 text-[11px] bg-slate-100/90 hover:bg-slate-200 text-slate-700'
-            : 'px-3 py-1.5 text-xs bg-slate-100/90 hover:bg-slate-200 text-slate-700 shadow-xs'
+            ? 'px-2.5 py-1 text-[11px]'
+            : 'px-3 py-1.5 text-xs shadow-xs'
         }`}
       >
         <span>{PERIOD_LABELS[value].full}</span>
@@ -62,7 +62,7 @@ export const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange,
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-32 bg-white rounded-2xl shadow-xl border border-slate-100 p-1 z-50 animate-fade-in-up origin-top-right">
+        <div className="absolute right-0 mt-1.5 w-32 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-1.5 z-50 animate-fade-in-up origin-top-right ring-1 ring-black/5">
           {options.map((opt) => (
             <button
               key={opt}
@@ -71,14 +71,14 @@ export const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange,
                 onChange(opt);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors text-left cursor-pointer ${
                 value === opt
-                  ? 'bg-primary/10 text-primary font-bold'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
               <span>{PERIOD_LABELS[opt].full}</span>
-              {value === opt && <Icon name="check" size={14} className="text-primary" />}
+              {value === opt && <Icon name="check" size={16} className="text-primary" />}
             </button>
           ))}
         </div>
@@ -208,9 +208,9 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
 
   return (
     <div className="w-full bg-white rounded-[2.5rem] p-6 sm:p-7 shadow-soft relative overflow-visible group transition-all duration-300 border border-slate-100">
-      <div className="relative z-10 flex flex-col gap-4">
+      <div className="relative flex flex-col gap-4">
         {/* Header: Title + Period Dropdown */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 relative z-30">
           <div>
             <span className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-0.5">
               Ganancia Neta
@@ -225,14 +225,14 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
         </div>
 
         {/* Main Number: Ganancia Neta */}
-        <div className="my-1">
+        <div className="my-1 relative z-0">
           <p className={`text-4xl sm:text-5xl font-black tracking-tight leading-none ${stats.net < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
             {format(stats.net)}
           </p>
         </div>
 
         {/* 3-Column Footer Breakdown */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 mt-1">
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 mt-1 relative z-0">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ventas Brutas</span>
             <span className="text-sm font-black text-slate-800 truncate">
@@ -530,7 +530,7 @@ export const SupplyExpenseCard: React.FC<{ transactions?: Transaction[] }> = ({ 
 
   return (
     <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-visible border border-slate-100/80">
-      <div className="flex justify-between items-start z-10">
+      <div className="flex justify-between items-start relative z-30">
         <div className="size-10 rounded-full flex items-center justify-center bg-orange-100 text-orange-600">
           <Icon name="shopping_bag" size={20} />
         </div>
@@ -539,7 +539,7 @@ export const SupplyExpenseCard: React.FC<{ transactions?: Transaction[] }> = ({ 
         <PeriodDropdown value={period} onChange={setPeriod} size="sm" />
       </div>
 
-      <div className="z-10">
+      <div className="relative z-0">
         <p className="text-xs font-bold text-slate-900 mb-0.5">Gasto Insumos</p>
         <p className="text-[11px] font-medium text-slate-400 mb-1.5">
           {period === 'weekly' ? 'Esta semana' : period === 'monthly' ? 'Este mes' : 'Este año'}
