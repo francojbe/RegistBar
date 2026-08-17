@@ -7,37 +7,189 @@ import { supabase } from '../supabaseClient';
 
 import { useCurrency } from '../utils/currency';
 
-// --- Savings Card (Now Income Accumulator) ---
+import { formatInTimeZone, toDate } from 'date-fns-tz';
+
+const SANTIAGO_TZ = 'America/Santiago';
+
+// --- Savings Card (Now Income Accumulator with Period Switcher) ---
 interface FiscalSavingsCardProps {
-  grossIncome: number;
-  netIncome: number;
+  transactions?: Transaction[];
+  profileData?: {
+    expense_model?: 'commission' | 'rent';
+    rent_amount?: number;
+    rent_period?: 'weekly' | 'monthly';
+  } | null;
+  grossIncome?: number;
+  netIncome?: number;
 }
 
-export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({ grossIncome, netIncome }) => {
+export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({ 
+  transactions = [], 
+  profileData,
+  grossIncome: fallbackGross = 0,
+  netIncome: fallbackNet = 0 
+}) => {
   const { format } = useCurrency();
+  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+
+  const stats = React.useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return {
+        title: period === 'weekly' ? 'Ganancia Neta (Semana)' : period === 'monthly' ? 'Ganancia Neta (Mes)' : 'Ganancia Neta (Año)',
+        subtitle: 'Semana en curso',
+        net: fallbackGross,
+        gross: fallbackNet,
+        expenses: Math.max(0, fallbackNet - fallbackGross),
+        servicesCount: 0
+      };
+    }
+
+    const nowAtSantiago = toDate(new Date(), { timeZone: SANTIAGO_TZ });
+    const currentYear = nowAtSantiago.getFullYear();
+    const currentMonthStr = formatInTimeZone(nowAtSantiago, SANTIAGO_TZ, 'yyyy-MM');
+
+    // 1. Weekly boundary (Monday to Sunday)
+    const dayOfWeek = nowAtSantiago.getDay();
+    const diffDay = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const startOfWeek = new Date(nowAtSantiago);
+    startOfWeek.setDate(nowAtSantiago.getDate() + diffDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    let filtered: Transaction[] = [];
+    let periodTitle = 'Ganancia Neta (Semana)';
+    let periodSubtitle = `${formatInTimeZone(startOfWeek, SANTIAGO_TZ, 'dd MMM')} - ${formatInTimeZone(endOfWeek, SANTIAGO_TZ, 'dd MMM')}`;
+    let rentDeduction = 0;
+
+    const rentAmount = Number(profileData?.rent_amount) || 0;
+    const isRentModel = profileData?.expense_model === 'rent';
+    const rentPeriod = profileData?.rent_period || 'monthly';
+
+    if (period === 'weekly') {
+      periodTitle = 'Ganancia Neta (Semana)';
+      filtered = transactions.filter(t => {
+        const txDate = toDate(formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM-dd HH:mm:ss'), { timeZone: SANTIAGO_TZ });
+        return txDate >= startOfWeek && txDate <= endOfWeek;
+      });
+
+      if (isRentModel && rentAmount > 0) {
+        rentDeduction = rentPeriod === 'weekly' ? rentAmount : Math.round(rentAmount / 4);
+      }
+    } else if (period === 'monthly') {
+      periodTitle = 'Ganancia Neta (Mes)';
+      const monthName = nowAtSantiago.toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: SANTIAGO_TZ });
+      periodSubtitle = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+      filtered = transactions.filter(t => {
+        const txMonthStr = formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM');
+        return txMonthStr === currentMonthStr;
+      });
+
+      if (isRentModel && rentAmount > 0) {
+        rentDeduction = rentPeriod === 'weekly' ? rentAmount * 4 : rentAmount;
+      }
+    } else {
+      // Yearly
+      periodTitle = 'Ganancia Neta (Año)';
+      periodSubtitle = `Año ${currentYear}`;
+
+      filtered = transactions.filter(t => {
+        const txYear = new Date(t.rawDate).getFullYear();
+        return txYear === currentYear;
+      });
+
+      if (isRentModel && rentAmount > 0) {
+        const monthsPassed = nowAtSantiago.getMonth() + 1;
+        const monthlyRent = rentPeriod === 'weekly' ? rentAmount * 4 : rentAmount;
+        rentDeduction = monthlyRent * monthsPassed;
+      }
+    }
+
+    const gross = filtered
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    const explicitExpenses = filtered
+      .filter(t => t.type === 'expense' || t.category === 'supply' || (t.title && t.title.includes('Aporte a Ahorro')))
+      .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+
+    const totalCosts = explicitExpenses + rentDeduction;
+    const net = gross - totalCosts;
+    const servicesCount = filtered.filter(t => t.type === 'income' && t.category === 'service').length;
+
+    return {
+      title: periodTitle,
+      subtitle: periodSubtitle,
+      net,
+      gross,
+      expenses: totalCosts,
+      servicesCount
+    };
+  }, [transactions, profileData, period, fallbackGross, fallbackNet]);
 
   return (
-    <div className="w-full bg-white rounded-[2.5rem] p-8 shadow-soft relative overflow-hidden group transition-transform hover:scale-[1.01] duration-300">
+    <div className="w-full bg-white rounded-[2.5rem] p-6 sm:p-7 shadow-soft relative overflow-hidden group transition-all duration-300 border border-slate-100">
       <div className="relative z-10 flex flex-col gap-4">
-        <div className="flex justify-between items-start">
-          <div className="flex flex-col">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Balance Semanal (Neto)</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-4xl font-extrabold leading-none text-slate-900 tracking-tighter">
-                {format(grossIncome)}
-              </p>
-            </div>
+        {/* Header: Title + Period Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-0.5">
+              {stats.title}
+            </span>
+            <span className="text-xs font-semibold text-primary">
+              {stats.subtitle}
+            </span>
           </div>
-          <div className="p-3 rounded-full bg-primary/10 text-primary">
-            <Icon name="calendar_today" size={24} />
+
+          {/* Period Selector Tabs */}
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl self-start sm:self-auto">
+            {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer ${
+                  period === p
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {p === 'weekly' ? 'Semana' : p === 'monthly' ? 'Mes' : 'Año'}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex gap-8 mt-2">
+        {/* Main Number: Ganancia Neta */}
+        <div className="my-1">
+          <p className={`text-4xl sm:text-5xl font-black tracking-tight leading-none ${stats.net < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+            {format(stats.net)}
+          </p>
+        </div>
+
+        {/* 3-Column Footer Breakdown */}
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 mt-1">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-400 mb-1">Ventas Totales (Bruto)</span>
-            <span className={`text-lg font-bold ${netIncome < 0 ? 'text-red-500' : 'text-slate-900'}`}>
-              {format(netIncome)}
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ventas Brutas</span>
+            <span className="text-sm font-black text-slate-800 truncate">
+              {format(stats.gross)}
+            </span>
+          </div>
+
+          <div className="flex flex-col border-l border-slate-100 pl-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Costos & Gastos</span>
+            <span className="text-sm font-black text-rose-600 truncate">
+              - {format(stats.expenses)}
+            </span>
+          </div>
+
+          <div className="flex flex-col border-l border-slate-100 pl-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Servicios</span>
+            <span className="text-sm font-black text-slate-800 truncate">
+              {stats.servicesCount} {stats.servicesCount === 1 ? 'corte' : 'cortes'}
             </span>
           </div>
         </div>

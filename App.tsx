@@ -70,6 +70,8 @@ const App: React.FC = () => {
   const { fcmToken, requestPushPermissions } = usePushNotifications(user, () => setShowNotifications(true));
 
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [allFusedTransactions, setAllFusedTransactions] = useState<Transaction[]>([]);
+  const [profileSettings, setProfileSettings] = useState<any>(null);
   const [totalIncome, setTotalIncome] = useState(0); // This will be Net (Total Real)
   const [totalGrossIncome, setTotalGrossIncome] = useState(0); // This will be Gross (Balance Estimado)
   const [totalSupplyExpense, setTotalSupplyExpense] = useState(0);
@@ -210,6 +212,9 @@ const App: React.FC = () => {
         .select('expense_model, rent_amount, rent_period')
         .eq('id', user.id)
         .single();
+
+      setAllFusedTransactions(fused);
+      setProfileSettings(profileData);
 
       // Use fused transactions for ALL calculations below
       const fusedFull = fused;
@@ -448,7 +453,12 @@ const App: React.FC = () => {
                   className="flex flex-col gap-6"
                 >
                   <section className="flex flex-col gap-4" data-tour="balance-card">
-                    <FiscalSavingsCard grossIncome={totalIncome} netIncome={totalGrossIncome} />
+                    <FiscalSavingsCard 
+                      transactions={allFusedTransactions}
+                      profileData={profileSettings}
+                      grossIncome={totalIncome} 
+                      netIncome={totalGrossIncome} 
+                    />
                   </section>
 
                   {savingsGoal && (
