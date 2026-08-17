@@ -131,64 +131,66 @@ export const FiscalSavingsCard: React.FC<FiscalSavingsCardProps> = ({
   }, [transactions, profileData, period, fallbackGross, fallbackNet]);
 
   return (
-    <div className="w-full bg-white rounded-[2rem] p-5 shadow-soft relative overflow-hidden group transition-all duration-300 border border-slate-100">
-      <div className="relative z-10 flex flex-col gap-3">
-        {/* Header: Title + Period Switcher (Single Line) */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-wider truncate">
+    <div className="w-full bg-white rounded-[2.5rem] p-6 sm:p-7 shadow-soft relative overflow-hidden group transition-all duration-300 border border-slate-100">
+      <div className="relative z-10 flex flex-col gap-4">
+        {/* Header: Title + Period Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-0.5">
               Ganancia Neta
             </span>
-            <span className="text-xs font-semibold text-primary truncate">
-              • {stats.subtitle}
+            <span className="text-xs font-semibold text-primary">
+              {stats.subtitle}
             </span>
           </div>
 
           {/* Period Selector Tabs */}
-          <div className="flex items-center p-0.5 bg-slate-100/90 rounded-xl flex-shrink-0">
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl self-start sm:self-auto">
             {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPeriod(p)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer ${
                   period === p
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                {p === 'weekly' ? 'Sem' : p === 'monthly' ? 'Mes' : 'Año'}
+                {p === 'weekly' ? 'Semana' : p === 'monthly' ? 'Mes' : 'Año'}
               </button>
             ))}
           </div>
         </div>
 
         {/* Main Number: Ganancia Neta */}
-        <div>
-          <p className={`text-3xl sm:text-4xl font-extrabold tracking-tight leading-none ${stats.net < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+        <div className="my-1">
+          <p className={`text-4xl sm:text-5xl font-black tracking-tight leading-none ${stats.net < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
             {format(stats.net)}
           </p>
         </div>
 
-        {/* Compact Footer Capsule */}
-        <div className="flex items-center justify-between bg-slate-50/90 border border-slate-100 rounded-2xl py-2 px-3.5 mt-0.5 text-xs">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-slate-400 font-medium">Bruto:</span>
-            <span className="font-bold text-slate-800 truncate">{format(stats.gross)}</span>
+        {/* 3-Column Footer Breakdown */}
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 mt-1">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ventas Brutas</span>
+            <span className="text-sm font-black text-slate-800 truncate">
+              {format(stats.gross)}
+            </span>
           </div>
 
-          <div className="h-3 w-px bg-slate-200 flex-shrink-0" />
-
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-slate-400 font-medium">Gastos:</span>
-            <span className="font-bold text-rose-600 truncate">-{format(stats.expenses)}</span>
+          <div className="flex flex-col border-l border-slate-100 pl-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Costos & Gastos</span>
+            <span className="text-sm font-black text-rose-600 truncate">
+              - {format(stats.expenses)}
+            </span>
           </div>
 
-          <div className="h-3 w-px bg-slate-200 flex-shrink-0" />
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="font-bold text-slate-700">{stats.servicesCount}</span>
-            <span className="text-slate-400">{stats.servicesCount === 1 ? 'corte' : 'cortes'}</span>
+          <div className="flex flex-col border-l border-slate-100 pl-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Servicios</span>
+            <span className="text-sm font-black text-slate-800 truncate">
+              {stats.servicesCount} {stats.servicesCount === 1 ? 'corte' : 'cortes'}
+            </span>
           </div>
         </div>
       </div>
