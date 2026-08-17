@@ -552,37 +552,196 @@ export const SupplyExpenseCard: React.FC<{ transactions?: Transaction[] }> = ({ 
   );
 };
 
-// --- KPI Grid ---
-interface KpiGridProps {
-  items: KPI[];
+// --- Daily Activity KPI Card (Jornada de Hoy - Option B) ---
+interface DailyActivityKpiCardProps {
   transactions?: Transaction[];
+  dailyGoal?: number;
+  onGoalUpdated?: (newGoal: number) => void;
 }
 
-export const KpiGrid: React.FC<KpiGridProps> = ({ items, transactions = [] }) => {
-  const firstItem = items[0] || {
-    label: 'Balance Mensual',
-    value: '$ 0',
-    icon: 'calendar_month',
-    iconBgClass: 'bg-purple-100',
-    iconColorClass: 'text-purple-600'
+export const DailyActivityKpiCard: React.FC<DailyActivityKpiCardProps> = ({ 
+  transactions = [], 
+  dailyGoal = 60000,
+  onGoalUpdated 
+}) => {
+  const { user } = useAuth();
+  const { format, symbol } = useCurrency();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editGoalInput, setEditGoalInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [localGoal, setLocalGoal] = useState(dailyGoal);
+
+  React.useEffect(() => {
+    setLocalGoal(dailyGoal || 60000);
+  }, [dailyGoal]);
+
+  const todayStats = React.useMemo(() => {
+    const todayChileStr = new Date().toLocaleDateString('en-CA', { timeZone: SANTIAGO_TZ });
+    
+    const todayTx = transactions.filter((t: any) => {
+      const txChile = new Date(t.rawDate || t.date).toLocaleDateString('en-CA', { timeZone: SANTIAGO_TZ });
+      return txChile === todayChileStr;
+    });
+
+    const incomeToday = todayTx
+      .filter((t: any) => t.type === 'income')
+      .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+
+    const servicesTodayCount = todayTx
+      .filter((t: any) => t.type === 'income' && t.category === 'service').length;
+
+    const progress = localGoal > 0 ? Math.min(Math.round((incomeToday / localGoal) * 100), 100) : 0;
+
+    return {
+      income: incomeToday,
+      servicesCount: servicesTodayCount,
+      progress
+    };
+  }, [transactions, localGoal]);
+
+  const handleSaveGoal = async () => {
+    const num = Number(editGoalInput);
+    if (isNaN(num) || num <= 0) return;
+
+    setIsSaving(true);
+    try {
+      setLocalGoal(num);
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ daily_goal: num })
+          .eq('id', user.id);
+      }
+      onGoalUpdated?.(num);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error('Error saving daily goal:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-      {/* Card 1: Balance Mensual */}
-      <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-hidden border border-slate-100/80">
-        <div className="flex justify-between items-start z-10">
-          <div className={`size-10 rounded-full flex items-center justify-center ${firstItem.iconBgClass} ${firstItem.iconColorClass}`}>
-            <Icon name={firstItem.icon} size={20} />
+    <>
+      <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-visible border border-slate-100/80">
+        <div className="flex justify-between items-start relative z-30">
+          <div className="size-10 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600">
+            <Icon name="event_available" size={20} />
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditGoalInput(String(localGoal));
+              setShowEditModal(true);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-200/60 active:scale-95"
+            title="Editar Meta Diaria"
+          >
+            <Icon name="edit" size={13} className="text-slate-400" />
+            <span>Meta</span>
+          </button>
         </div>
 
-        <div className="z-10">
-          <p className="text-xs font-bold text-slate-900 mb-0.5">{firstItem.label}</p>
-          <p className="text-[11px] font-medium text-slate-400 mb-1.5">Total del mes</p>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{firstItem.value}</p>
+        <div className="relative z-0">
+          <div className="flex items-baseline justify-between gap-1 mb-0.5">
+            <p className="text-xs font-bold text-slate-900 truncate">Jornada de Hoy</p>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+              {todayStats.progress}%
+            </span>
+          </div>
+
+          <p className="text-[11px] font-medium text-slate-400 mb-1.5">
+            {todayStats.servicesCount} {todayStats.servicesCount === 1 ? 'servicio' : 'servicios'}
+          </p>
+
+          <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
+            {format(todayStats.income)}
+          </p>
+
+          {/* Micro Progress Bar */}
+          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+              style={{ width: `${todayStats.progress}%` }}
+            />
+          </div>
         </div>
       </div>
+
+      {/* Mini Edit Goal Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl border border-slate-100 flex flex-col gap-4 animate-scale-in">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <Icon name="flag" size={22} />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-base">Meta Diaria</h4>
+                <p className="text-xs text-slate-400">¿Cuánto quieres ganar hoy?</p>
+              </div>
+            </div>
+
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
+                {symbol}
+              </span>
+              <input
+                type="number"
+                value={editGoalInput}
+                onChange={(e) => setEditGoalInput(e.target.value)}
+                placeholder="60000"
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-8 pr-3 text-slate-900 font-bold text-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveGoal}
+                disabled={isSaving || !editGoalInput}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// --- KPI Grid ---
+interface KpiGridProps {
+  items?: KPI[];
+  transactions?: Transaction[];
+  dailyGoal?: number;
+  onGoalUpdated?: (newGoal: number) => void;
+}
+
+export const KpiGrid: React.FC<KpiGridProps> = ({ 
+  transactions = [], 
+  dailyGoal = 60000, 
+  onGoalUpdated 
+}) => {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* Card 1: Jornada de Hoy (Option B) */}
+      <DailyActivityKpiCard 
+        transactions={transactions} 
+        dailyGoal={dailyGoal} 
+        onGoalUpdated={onGoalUpdated} 
+      />
 
       {/* Card 2: Interactive Supply Expense Card with Period Switcher */}
       <SupplyExpenseCard transactions={transactions} />

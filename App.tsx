@@ -206,10 +206,10 @@ const App: React.FC = () => {
         setSavingsGoal(null);
       }
 
-      // 3. Fetch Profile for Expense Model
+      // 3. Fetch Profile for Expense Model and Daily Goal
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('expense_model, rent_amount, rent_period')
+        .select('expense_model, rent_amount, rent_period, daily_goal')
         .eq('id', user.id)
         .single();
 
@@ -473,7 +473,12 @@ const App: React.FC = () => {
                   )}
 
                   <section data-tour="kpi-grid" className="relative z-10">
-                    <KpiGrid items={kpis} transactions={allFusedTransactions} />
+                    <KpiGrid 
+                      items={kpis} 
+                      transactions={allFusedTransactions} 
+                      dailyGoal={profileSettings?.daily_goal || 60000}
+                      onGoalUpdated={fetchData}
+                    />
                   </section>
 
                   <OnboardingChecklist 

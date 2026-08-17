@@ -25,6 +25,7 @@ export const ProfileView: React.FC = () => {
     const [rentAmount, setRentAmount] = useState<number>(0);
     const [rentPeriod, setRentPeriod] = useState<'weekly' | 'monthly'>('monthly');
     const [userCurrency, setUserCurrency] = useState('CLP');
+    const [dailyGoal, setDailyGoal] = useState<number>(60000);
 
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
@@ -47,6 +48,7 @@ export const ProfileView: React.FC = () => {
     const [editExpenseModel, setEditExpenseModel] = useState<'commission' | 'rent'>('commission');
     const [editRentAmount, setEditRentAmount] = useState<number | string>('');
     const [editRentPeriod, setEditRentPeriod] = useState<'weekly' | 'monthly'>('monthly');
+    const [editDailyGoal, setEditDailyGoal] = useState<number | string>(60000);
     const [editUserName, setEditUserName] = useState(user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || "Usuario");
 
     // Avatar & User Info State
@@ -94,7 +96,7 @@ export const ProfileView: React.FC = () => {
             // Fetch Profile
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('commission_rate, first_name, last_name, expense_model, rent_amount, rent_period, currency')
+                .select('commission_rate, first_name, last_name, expense_model, rent_amount, rent_period, currency, daily_goal')
                 .eq('id', user.id)
                 .single();
 
@@ -104,11 +106,13 @@ export const ProfileView: React.FC = () => {
                 setRentAmount(profileData.rent_amount || 0);
                 setRentPeriod(profileData.rent_period || 'monthly');
                 setUserCurrency(profileData.currency || 'CLP');
+                setDailyGoal(profileData.daily_goal || 60000);
 
                 setEditCommissionRate(profileData.commission_rate ?? 40);
                 setEditExpenseModel(profileData.expense_model || 'commission');
                 setEditRentAmount(profileData.rent_amount || 0);
                 setEditRentPeriod(profileData.rent_period || 'monthly');
+                setEditDailyGoal(profileData.daily_goal || 60000);
 
                 if (profileData.first_name) {
                     const fullName = `${profileData.first_name} ${profileData.last_name || ''}`.trim();
@@ -244,7 +248,8 @@ export const ProfileView: React.FC = () => {
                     rent_amount: Number(editRentAmount) || 0,
                     rent_period: editRentPeriod,
                     first_name: firstName,
-                    last_name: lastName
+                    last_name: lastName,
+                    daily_goal: Number(editDailyGoal) || 60000
                 });
 
             if (profileError) throw profileError;
@@ -261,6 +266,7 @@ export const ProfileView: React.FC = () => {
             setExpenseModel(editExpenseModel);
             setRentAmount(Number(editRentAmount) || 0);
             setRentPeriod(editRentPeriod);
+            setDailyGoal(Number(editDailyGoal) || 60000);
             setUserName(editUserName);
             setIsEditing(false);
 
@@ -419,6 +425,27 @@ export const ProfileView: React.FC = () => {
 
 
 
+                            {/* Daily Goal Amount */}
+                            <div className="flex flex-col gap-2 pt-4 border-t border-dashed border-slate-200">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Meta Diaria de Ingresos (Jornada)</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                                    <input
+                                        type="tel"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={editDailyGoal}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            setEditDailyGoal(val === '' ? '' : Number(val));
+                                        }}
+                                        placeholder="60000"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3 text-slate-900 font-bold focus:outline-none focus:border-primary/50 transition-colors"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-400">Meta diaria que se muestra en tu tarjeta de inicio.</p>
+                            </div>
+
                             {/* NEW: Expenses Model Selector */}
                             <div className="flex flex-col gap-3 pt-4 border-t border-dashed border-slate-200">
                                 <label className="text-xs font-bold text-slate-500 uppercase">Modelo de Costo (Lugar de Trabajo)</label>
@@ -517,7 +544,7 @@ export const ProfileView: React.FC = () => {
                         >
                             {/* Current Goal Display */}
                             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Meta Actual</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Meta de Ahorro</span>
                                 <h4 className="text-lg font-bold text-slate-900 mb-2">{goalName}</h4>
                                 <div className="flex items-baseline gap-1">
                                     <span className="text-3xl font-extrabold text-primary">${savedAmount.toLocaleString('es-CL')}</span>
@@ -539,9 +566,19 @@ export const ProfileView: React.FC = () => {
                             </div>
 
                             {/* Details Grid */}
-                            <div className="flex flex-col gap-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Daily Goal Card */}
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Icon name="event_available" size={16} className="text-indigo-600" />
+                                        <span className="text-xs font-bold text-slate-400 uppercase">Meta Diaria</span>
+                                    </div>
+                                    <p className="text-base font-bold text-slate-900">${Number(dailyGoal).toLocaleString('es-CL')}</p>
+                                    <p className="text-[10px] text-slate-500">Por jornada</p>
+                                </div>
+
                                 {/* Dynamic Expense Card */}
-                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 w-full">
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                                     {expenseModel === 'commission' ? (
                                         <>
                                             <div className="flex items-center gap-2 mb-1">
