@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icons';
 import { Transaction, KPI } from '../types';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
@@ -669,10 +670,10 @@ export const DailyActivityKpiCard: React.FC<DailyActivityKpiCardProps> = ({
         </div>
       </div>
 
-      {/* Mini Edit Goal Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl border border-slate-100 flex flex-col gap-4 animate-scale-in">
+      {/* Mini Edit Goal Modal Portal */}
+      {showEditModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9999] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-[2rem] p-6 w-full max-w-xs shadow-2xl border border-slate-100 flex flex-col gap-4 animate-scale-in">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
                 <Icon name="flag" size={22} />
@@ -715,7 +716,8 @@ export const DailyActivityKpiCard: React.FC<DailyActivityKpiCardProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
