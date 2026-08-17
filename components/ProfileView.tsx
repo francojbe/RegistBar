@@ -55,8 +55,9 @@ export const ProfileView: React.FC = () => {
     const [userPlan, setUserPlan] = useState("Plan Básico");
     const [totalServices, setTotalServices] = useState(0);
 
-    // Fetch Data on Mount
+    // Fetch Data on Mount & reset scroll
     React.useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         if (!user) return;
 
         // Update local state if user context updates (e.g. fresh fetch completed)

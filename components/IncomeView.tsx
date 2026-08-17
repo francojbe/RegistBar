@@ -97,8 +97,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports, onOpenNot
         }
     };
 
-    // Fetch Data on mount
+    // Fetch Data on mount & reset scroll
     React.useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         fetchDailyData();
     }, [user]);
 

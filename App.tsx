@@ -123,6 +123,13 @@ const App: React.FC = () => {
     }
   }, [user]);
 
+  // Reset scroll to top on tab change
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.body.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [activeTab]);
+
   // Sync Offline Data on Mount
   React.useEffect(() => {
     if (user) {
