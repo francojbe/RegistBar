@@ -51,6 +51,69 @@ interface AnalyticsEventRow {
     user_id: string;
 }
 
+const EVENT_META: Record<string, { label: string; icon: string; color: string; desc?: (p: any) => string }> = {
+    'app_install_opened': {
+        label: 'Apertura de App',
+        icon: 'login',
+        color: 'text-sky-400 bg-sky-950/80 border-sky-800/50',
+        desc: () => 'Sesión iniciada'
+    },
+    'service_created': {
+        label: 'Servicio Registrado',
+        icon: 'content_cut',
+        color: 'text-emerald-400 bg-emerald-950/80 border-emerald-800/50',
+        desc: (p) => p?.service_name ? `Servicio: ${p.service_name}` : 'Nuevo corte registrado'
+    },
+    'ai_advisor_prompted': {
+        label: 'Consulta Asesor IA',
+        icon: 'auto_awesome',
+        color: 'text-amber-400 bg-amber-950/80 border-amber-800/50',
+        desc: () => 'Interacción con el asesor inteligente'
+    },
+    'daily_close_viewed': {
+        label: 'Balance Diario',
+        icon: 'bar_chart',
+        color: 'text-indigo-400 bg-indigo-950/80 border-indigo-800/50',
+        desc: () => 'Revisión de reportes y cierre'
+    },
+    'ocr_scan_attempted': {
+        label: 'Escaneo Boleta IA',
+        icon: 'document_scanner',
+        color: 'text-purple-400 bg-purple-950/80 border-purple-800/50',
+        desc: () => 'Cámara o foto de boleta subida'
+    },
+    'ocr_scan_confirmed': {
+        label: 'Boleta Confirmada',
+        icon: 'check_circle',
+        color: 'text-green-400 bg-green-950/80 border-green-800/50',
+        desc: () => 'Gasto de insumo aprobado'
+    },
+    'privacy_mode_toggled': {
+        label: 'Modo Privacidad',
+        icon: 'visibility',
+        color: 'text-blue-400 bg-blue-950/80 border-blue-800/50',
+        desc: (p) => p?.hidden ? 'Montos ocultados (Ojo activado)' : 'Montos visibles'
+    },
+    'whatsapp_share_clicked': {
+        label: 'Compartir WhatsApp',
+        icon: 'share',
+        color: 'text-teal-400 bg-teal-950/80 border-teal-800/50',
+        desc: () => 'Reporte financiero compartido'
+    },
+    'onboarding_completed': {
+        label: 'Perfil Completado',
+        icon: 'celebration',
+        color: 'text-pink-400 bg-pink-950/80 border-pink-800/50',
+        desc: () => 'Nuevo barbero listo para usar la app'
+    },
+    'first_transaction_logged': {
+        label: 'Primer Corte Registrado',
+        icon: 'star',
+        color: 'text-yellow-400 bg-yellow-950/80 border-yellow-800/50',
+        desc: () => 'Activación de usuario exitosa'
+    }
+};
+
 export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
     const { signOut } = useAuth();
     const { showToast } = useToast();
@@ -60,6 +123,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
     const [events, setEvents] = useState<AnalyticsEventRow[]>([]);
     const [loadingAnalytics, setLoadingAnalytics] = useState(true);
     const [totalServicesCount, setTotalServicesCount] = useState(0);
+    const [eventFilter, setEventFilter] = useState<'all' | 'services' | 'ai' | 'ocr' | 'opens'>('all');
 
     // --- Tickets State ---
     const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -214,6 +278,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
             webPct
         };
     }, [events]);
+
+    // Filtered Events
+    const filteredEvents = useMemo(() => {
+        if (eventFilter === 'services') return events.filter(e => e.event_name === 'service_created' || e.event_name === 'first_transaction_logged');
+        if (eventFilter === 'ai') return events.filter(e => e.event_name === 'ai_advisor_prompted');
+        if (eventFilter === 'ocr') return events.filter(e => e.event_name === 'ocr_scan_attempted' || e.event_name === 'ocr_scan_confirmed');
+        if (eventFilter === 'opens') return events.filter(e => e.event_name === 'app_install_opened');
+        return events;
+    }, [events, eventFilter]);
 
     // User Plan Update Handler (1-Click)
     const handleUpdateUserPlan = async (userId: string, newPlan: string) => {
@@ -591,40 +664,85 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
 
                         {/* Recent Telemetry Events Log */}
                         <div className="bg-slate-800/50 border border-slate-700/60 rounded-3xl p-5 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-base text-white flex items-center gap-2">
-                                    <Icon name="sensors" size={18} className="text-indigo-400" />
-                                    <span>Últimos Eventos de Telemetría</span>
-                                </h3>
-                                <span className="text-xs text-slate-400 font-semibold">{events.length} eventos recientes</span>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <h3 className="font-bold text-base text-white flex items-center gap-2">
+                                        <Icon name="sensors" size={18} className="text-indigo-400" />
+                                        <span>Registro de Actividad en Tiempo Real</span>
+                                    </h3>
+                                    <p className="text-xs text-slate-400">Acciones que realizan los usuarios dentro de la aplicación.</p>
+                                </div>
+                                <span className="text-xs text-slate-400 font-semibold self-start sm:self-auto">
+                                    {filteredEvents.length} eventos
+                                </span>
+                            </div>
+
+                            {/* Event Filter Pills */}
+                            <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                                {[
+                                    { id: 'all', label: 'Todos' },
+                                    { id: 'services', label: '✂️ Servicios' },
+                                    { id: 'ai', label: '🤖 Asesor IA' },
+                                    { id: 'ocr', label: '📷 Escáner' },
+                                    { id: 'opens', label: '📱 Aperturas' },
+                                ].map((f) => (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setEventFilter(f.id as any)}
+                                        className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                            eventFilter === f.id
+                                                ? 'bg-indigo-600 text-white shadow-xs'
+                                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                        }`}
+                                    >
+                                        {f.label}
+                                    </button>
+                                ))}
                             </div>
 
                             {loadingAnalytics ? (
                                 <div className="flex justify-center py-8">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                                 </div>
-                            ) : events.length === 0 ? (
-                                <p className="text-sm text-slate-500 text-center py-6">No hay eventos registrados aún.</p>
+                            ) : filteredEvents.length === 0 ? (
+                                <p className="text-sm text-slate-500 text-center py-6">No hay eventos en esta categoría.</p>
                             ) : (
-                                <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
-                                    {events.map((evt) => (
-                                        <div
-                                            key={evt.id}
-                                            className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between text-xs"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span className="font-bold text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded-md border border-indigo-800/50">
-                                                    {evt.event_name}
-                                                </span>
-                                                <span className="text-slate-400 text-[11px]">
-                                                    {evt.properties?.platform === 'android' ? '📱 Android' : '🌐 Web PWA'}
-                                                </span>
+                                <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
+                                    {filteredEvents.map((evt) => {
+                                        const meta = EVENT_META[evt.event_name] || {
+                                            label: evt.event_name,
+                                            icon: 'touch_app',
+                                            color: 'text-slate-300 bg-slate-800 border-slate-700',
+                                            desc: () => 'Acción en la app'
+                                        };
+                                        return (
+                                            <div
+                                                key={evt.id}
+                                                className="bg-slate-900/70 border border-slate-800/90 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className={`size-8 rounded-xl flex items-center justify-center shrink-0 border ${meta.color}`}>
+                                                        <Icon name={meta.icon} size={18} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-white text-sm truncate">{meta.label}</p>
+                                                        <p className="text-[11px] text-slate-400 truncate">
+                                                            {meta.desc ? meta.desc(evt.properties) : 'Acción registrada'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                                                        {evt.properties?.platform === 'android' ? '📱 Android' : '🌐 Web PWA'}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500">
+                                                        {new Date(evt.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} • {new Date(evt.created_at).toLocaleDateString('es-CL')}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span className="text-[10px] text-slate-500">
-                                                {new Date(evt.created_at).toLocaleString('es-CL')}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
