@@ -23,7 +23,7 @@ interface IncomeViewProps {
 export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports, onOpenNotifications, onOpenProfilePhoto }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
-    const { format, code, symbol } = useCurrency();
+    const { format, code, symbol, isPrivacyMode, togglePrivacyMode } = useCurrency();
     const [showNewService, setShowNewService] = useState(false);
     const [showScanReceipt, setShowScanReceipt] = useState(false);
     const [showTipModal, setShowTipModal] = useState(false);
@@ -206,7 +206,21 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports, onOpenNot
                         <Icon name="menu" size={28} />
                     </button>
                     <h1 className="text-lg font-bold text-slate-900">Registros</h1>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
+                        {/* Privacy Eye Toggle Button */}
+                        <button
+                            onClick={togglePrivacyMode}
+                            className={`p-2 rounded-full transition-all active:scale-95 cursor-pointer ${
+                                isPrivacyMode
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'text-slate-400 hover:text-slate-700'
+                            }`}
+                            title={isPrivacyMode ? "Mostrar montos" : "Ocultar montos"}
+                            aria-label={isPrivacyMode ? "Mostrar montos" : "Ocultar montos"}
+                        >
+                            <Icon name={isPrivacyMode ? "visibility_off" : "visibility"} size={20} />
+                        </button>
+
                         {onOpenNotifications && (
                             <NotificationBell onClick={onOpenNotifications} />
                         )}

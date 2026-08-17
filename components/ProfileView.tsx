@@ -11,10 +11,12 @@ import { ProfilePhotoModal } from './ProfilePhotoModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { useCurrency } from '../utils/currency';
 
 export const ProfileView: React.FC = () => {
     const { user, signOut } = useAuth();
     const { showToast } = useToast();
+    const { format } = useCurrency();
     // Savings Plan State
     const [goalName, setGoalName] = useState("Mi Meta");
     const [goalAmount, setGoalAmount] = useState<number>(0);
@@ -547,8 +549,8 @@ export const ProfileView: React.FC = () => {
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Meta de Ahorro</span>
                                 <h4 className="text-lg font-bold text-slate-900 mb-2">{goalName}</h4>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-3xl font-extrabold text-primary">${savedAmount.toLocaleString('es-CL')}</span>
-                                    <span className="text-sm font-medium text-slate-500">/ ${goalAmount.toLocaleString('es-CL')}</span>
+                                    <span className="text-3xl font-extrabold text-primary">{format(savedAmount)}</span>
+                                    <span className="text-sm font-medium text-slate-500">/ {format(goalAmount)}</span>
                                 </div>
 
                                 {/* Progress Bar */}
@@ -573,7 +575,7 @@ export const ProfileView: React.FC = () => {
                                         <Icon name="event_available" size={16} className="text-indigo-600" />
                                         <span className="text-xs font-bold text-slate-400 uppercase">Meta Diaria</span>
                                     </div>
-                                    <p className="text-base font-bold text-slate-900">${Number(dailyGoal).toLocaleString('es-CL')}</p>
+                                    <p className="text-base font-bold text-slate-900">{format(dailyGoal)}</p>
                                     <p className="text-[10px] text-slate-500">Por jornada</p>
                                 </div>
 
@@ -595,7 +597,7 @@ export const ProfileView: React.FC = () => {
                                                 <span className="text-xs font-bold text-slate-400 uppercase">Arriendo</span>
                                             </div>
                                             <p className="text-base font-bold text-slate-900">
-                                                ${Number(rentAmount).toLocaleString('es-CL')}
+                                                {format(rentAmount)}
                                             </p>
                                             <p className="text-[10px] text-slate-500 capitalize">{rentPeriod === 'weekly' ? 'Semanal' : 'Mensual'}</p>
                                         </>

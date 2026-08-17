@@ -41,9 +41,43 @@ const CURRENCY_MAP: Record<string, CurrencyConfig> = {
 // Global cache to avoid refetching on every component mount
 let globalCurrencyCache: string | null = null;
 
+// Global privacy state
+let isPrivacyModeGlobal: boolean = typeof window !== 'undefined' 
+    ? localStorage.getItem('registbar_privacy_mode') === 'true' 
+    : false;
+const privacyListeners = new Set<(hidden: boolean) => void>();
+
+export const togglePrivacyMode = () => {
+    isPrivacyModeGlobal = !isPrivacyModeGlobal;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('registbar_privacy_mode', String(isPrivacyModeGlobal));
+    }
+    privacyListeners.forEach(listener => listener(isPrivacyModeGlobal));
+    return isPrivacyModeGlobal;
+};
+
+export const setPrivacyMode = (hidden: boolean) => {
+    isPrivacyModeGlobal = hidden;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('registbar_privacy_mode', String(isPrivacyModeGlobal));
+    }
+    privacyListeners.forEach(listener => listener(isPrivacyModeGlobal));
+};
+
+export const getPrivacyMode = () => isPrivacyModeGlobal;
+
 export const useCurrency = () => {
     const { user } = useAuth();
     const [currencyCode, setCurrencyCode] = useState<string>('CLP');
+    const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(isPrivacyModeGlobal);
+
+    useEffect(() => {
+        const listener = (hidden: boolean) => setIsPrivacyMode(hidden);
+        privacyListeners.add(listener);
+        return () => {
+            privacyListeners.delete(listener);
+        };
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -54,10 +88,7 @@ export const useCurrency = () => {
             return;
         }
 
-        // 2. Initial Optimistic Check (User Metadata if available?)
-        // (Optional optimization)
-
-        // 3. Fetch from DB
+        // 2. Fetch from DB
         const fetchCurrency = async () => {
             try {
                 const { data } = await supabase
@@ -80,6 +111,10 @@ export const useCurrency = () => {
     const config = CURRENCY_MAP[currencyCode] || CURRENCY_MAP['CLP'];
 
     const format = (amount: number | string | undefined | null) => {
+        if (isPrivacyMode) {
+            return config.symbol + " ••••••";
+        }
+
         if (amount === undefined || amount === null || amount === '') return config.symbol + " 0";
 
         const num = Number(amount);
@@ -97,6 +132,9 @@ export const useCurrency = () => {
 
     return {
         ...config,
+        isPrivacyMode,
+        togglePrivacyMode,
+        setPrivacyMode,
         format
     };
 };

@@ -38,6 +38,7 @@ import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { useDashboardModals } from './hooks/useDashboardModals';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { usePasswordRecovery } from './hooks/usePasswordRecovery';
+import { useCurrency } from './utils/currency';
 import { trackEvent } from './utils/analytics';
 
 const SANTIAGO_TZ = 'America/Santiago';
@@ -68,6 +69,7 @@ const App: React.FC = () => {
 
   const { isPasswordReset, setIsPasswordReset, isCheckingRecovery } = usePasswordRecovery();
   const { fcmToken, requestPushPermissions } = usePushNotifications(user, () => setShowNotifications(true));
+  const { isPrivacyMode, togglePrivacyMode } = useCurrency();
 
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [allFusedTransactions, setAllFusedTransactions] = useState<Transaction[]>([]);
@@ -418,13 +420,27 @@ const App: React.FC = () => {
                   <div className="absolute bottom-0 right-0 size-3.5 bg-green-500 rounded-full border-2 border-white"></div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
+                {/* Privacy Eye Toggle Button */}
+                <button
+                  onClick={togglePrivacyMode}
+                  className={`flex items-center justify-center size-12 rounded-full transition-all active:scale-95 cursor-pointer ${
+                    isPrivacyMode 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-2 ring-indigo-200' 
+                      : 'bg-white text-slate-500 shadow-soft hover:text-slate-800'
+                  }`}
+                  title={isPrivacyMode ? "Mostrar montos" : "Ocultar montos"}
+                  aria-label={isPrivacyMode ? "Mostrar montos" : "Ocultar montos"}
+                >
+                  <Icon name={isPrivacyMode ? "visibility_off" : "visibility"} size={22} />
+                </button>
+
                 <div data-tour="notification-bell">
                   <NotificationBell onClick={() => setShowNotifications(true)} />
                 </div>
                 <button
                   onClick={signOut}
-                  className="flex items-center justify-center size-12 rounded-full bg-white shadow-soft hover:shadow-lg transition-all active:scale-95 text-red-500"
+                  className="flex items-center justify-center size-12 rounded-full bg-white shadow-soft hover:shadow-lg transition-all active:scale-95 text-red-500 cursor-pointer"
                   title="Cerrar Sesión"
                 >
                   <Icon name="logout" size={22} />
