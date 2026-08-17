@@ -228,14 +228,26 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports, onOpenNot
                     <div className="relative z-10">
                         <div className="flex justify-between items-start mb-1">
                             <p className="text-slate-400 font-medium">Balance de hoy</p>
-                            <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded-lg">
-                                <Icon name="trending_up" size={16} className="text-green-600" />
-                                <span className="text-xs font-bold text-green-600">Día</span>
-                            </div>
+                            {dailyTotal > 0 ? (
+                                <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">
+                                    <Icon name="trending_up" size={16} className="text-emerald-600" />
+                                    <span className="text-xs font-bold">Día</span>
+                                </div>
+                            ) : dailyTotal < 0 ? (
+                                <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 text-rose-700 px-2 py-1 rounded-lg">
+                                    <Icon name="trending_down" size={16} className="text-rose-600" />
+                                    <span className="text-xs font-bold">Día</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1 bg-slate-100 border border-slate-200/60 text-slate-500 px-2 py-1 rounded-lg">
+                                    <Icon name="remove" size={16} className="text-slate-400" />
+                                    <span className="text-xs font-bold">Día</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex items-baseline gap-2 mb-2">
-                            <span className="text-5xl font-bold text-slate-900 tracking-tight">{format(dailyTotal)}</span>
+                            <span className={`text-5xl font-bold tracking-tight ${dailyTotal < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{format(dailyTotal)}</span>
                             <span className="text-lg font-medium text-slate-400">{code}</span>
                         </div>
 
