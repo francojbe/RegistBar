@@ -41,6 +41,8 @@ const CURRENCY_MAP: Record<string, CurrencyConfig> = {
 // Global cache to avoid refetching on every component mount
 let globalCurrencyCache: string | null = null;
 
+import { trackEvent } from './analytics';
+
 // Global privacy state
 let isPrivacyModeGlobal: boolean = typeof window !== 'undefined' 
     ? localStorage.getItem('registbar_privacy_mode') === 'true' 
@@ -53,6 +55,7 @@ export const togglePrivacyMode = () => {
         localStorage.setItem('registbar_privacy_mode', String(isPrivacyModeGlobal));
     }
     privacyListeners.forEach(listener => listener(isPrivacyModeGlobal));
+    trackEvent('privacy_mode_toggled', { hidden: isPrivacyModeGlobal });
     return isPrivacyModeGlobal;
 };
 

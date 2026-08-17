@@ -7,6 +7,7 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
+import { trackEvent } from '../utils/analytics';
 
 interface NewServiceModalProps {
     onClose: () => void;
@@ -103,6 +104,11 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({ onClose, onReq
             console.error('Error saving service:', error);
             showToast('Error al guardar el servicio', 'error');
         } else {
+            trackEvent('service_created', {
+                service_name: serviceName,
+                is_offline: offline || false,
+                expense_model: expenseModel
+            });
             showToast(offline ? 'Guardado localmente (Sin conexión)' : '¡Servicio registrado con éxito!', 'success');
             
             // Request push permissions in a moment of 'success'

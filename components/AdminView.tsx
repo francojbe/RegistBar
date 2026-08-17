@@ -75,6 +75,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
     const [users, setUsers] = useState<ProfileUser[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [userSearch, setUserSearch] = useState("");
+    const [userPlanFilter, setUserPlanFilter] = useState<'all' | 'pro' | 'basic' | 'recent'>('all');
+    const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
     // --- Announcements State ---
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -93,7 +95,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                 .from('analytics_events')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .limit(200);
 
             if (!eventsError && eventsData) {
                 setEvents(eventsData);
@@ -191,6 +193,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
         const ocrSuccessRate = ocrAttempts > 0 ? Math.round((ocrConfirmed / ocrAttempts) * 100) : 100;
         const aiPrompts = events.filter(e => e.event_name === 'ai_advisor_prompted').length;
         const totalOnboarded = events.filter(e => e.event_name === 'onboarding_completed').length;
+        const privacyToggles = events.filter(e => e.event_name === 'privacy_mode_toggled').length;
+
+        // Platform breakdown
+        const androidEvents = events.filter(e => e.properties?.platform === 'android').length;
+        const webEvents = events.filter(e => e.properties?.platform === 'pwa_web').length;
+        const totalEventsCount = events.length || 1;
+        const androidPct = Math.round((androidEvents / totalEventsCount) * 100);
+        const webPct = 100 - androidPct;
 
         return {
             totalAppOpens,
@@ -198,20 +208,61 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
             ocrConfirmed,
             ocrSuccessRate,
             aiPrompts,
-            totalOnboarded
+            totalOnboarded,
+            privacyToggles,
+            androidPct,
+            webPct
         };
     }, [events]);
 
+    // User Plan Update Handler (1-Click)
+    const handleUpdateUserPlan = async (userId: string, newPlan: string) => {
+        setUpdatingUserId(userId);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ subscription_status: newPlan })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, subscription_status: newPlan } : u));
+            showToast(`Plan actualizado a: ${newPlan.toUpperCase()}`, "success");
+        } catch (err: any) {
+            console.error("Error updating plan:", err);
+            showToast("Error al actualizar el plan", "error");
+        } finally {
+            setUpdatingUserId(null);
+        }
+    };
+
     // Filtered Users
     const filteredUsers = useMemo(() => {
-        if (!userSearch.trim()) return users;
-        const q = userSearch.toLowerCase();
-        return users.filter(u => 
-            (u.email && u.email.toLowerCase().includes(q)) ||
-            (u.full_name && u.full_name.toLowerCase().includes(q)) ||
-            (u.first_name && u.first_name.toLowerCase().includes(q))
-        );
-    }, [users, userSearch]);
+        let result = users;
+
+        // Search Filter
+        if (userSearch.trim()) {
+            const q = userSearch.toLowerCase();
+            result = result.filter(u => 
+                (u.email && u.email.toLowerCase().includes(q)) ||
+                (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+                (u.first_name && u.first_name.toLowerCase().includes(q))
+            );
+        }
+
+        // Plan / Segment Filter
+        if (userPlanFilter === 'pro') {
+            result = result.filter(u => u.subscription_status === 'pro' || u.subscription_status === 'vip');
+        } else if (userPlanFilter === 'basic') {
+            result = result.filter(u => !u.subscription_status || u.subscription_status === 'basic' || u.subscription_status === 'free');
+        } else if (userPlanFilter === 'recent') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            result = result.filter(u => u.created_at && new Date(u.created_at) >= sevenDaysAgo);
+        }
+
+        return result;
+    }, [users, userSearch, userPlanFilter]);
 
     // Ticket Actions
     const handleResolve = async (id: number) => {
@@ -383,7 +434,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                         { id: 'analytics', label: 'Telemetría & Métricas', icon: 'analytics' },
                         { id: 'announcements', label: 'Anuncios Globales', icon: 'campaign' },
                         { id: 'tickets', label: 'Soporte & Tickets', icon: 'help' },
-                        { id: 'users', label: 'Barberos Registrados', icon: 'group' },
+                        { id: 'users', label: 'Barberos & Planes', icon: 'group' },
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -494,6 +545,46 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                                 <div>
                                     <p className="text-[11px] font-bold text-slate-400 uppercase">Consultas Asesor IA</p>
                                     <p className="text-2xl font-black text-white">{stats.aiPrompts}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Breakdown Insights */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Platform Distribution */}
+                            <div className="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl flex flex-col gap-3">
+                                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                                    <Icon name="devices" size={18} className="text-indigo-400" />
+                                    <span>Distribución de Plataformas</span>
+                                </h3>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex justify-between text-xs mb-1 font-bold">
+                                            <span className="text-emerald-400">📱 Android ({stats.androidPct}%)</span>
+                                            <span className="text-sky-400">🌐 Web PWA ({stats.webPct}%)</span>
+                                        </div>
+                                        <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden flex">
+                                            <div style={{ width: `${stats.androidPct}%` }} className="bg-emerald-500 transition-all duration-500"></div>
+                                            <div style={{ width: `${stats.webPct}%` }} className="bg-sky-500 transition-all duration-500"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Privacy Mode Usage */}
+                            <div className="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl flex flex-col justify-between">
+                                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                                    <Icon name="visibility_off" size={18} className="text-indigo-400" />
+                                    <span>Uso de Modo Privacidad (Ojo)</span>
+                                </h3>
+                                <div className="flex items-center justify-between mt-2">
+                                    <div>
+                                        <p className="text-2xl font-black text-white">{stats.privacyToggles}</p>
+                                        <p className="text-[10px] text-slate-400">Veces que se activó/desactivó el modo discreto</p>
+                                    </div>
+                                    <span className="text-xs px-2.5 py-1 rounded-lg bg-indigo-950 text-indigo-300 border border-indigo-800/50 font-bold">
+                                        Alta demanda
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -743,13 +834,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                     </div>
                 )}
 
-                {/* 4. VIEW: REGISTERED USERS */}
+                {/* 4. VIEW: REGISTERED USERS & PLAN MANAGEMENT */}
                 {view === 'users' && (
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col gap-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-2xl font-black text-white">Barberos Registrados</h2>
-                                <p className="text-xs text-slate-400">Listado de cuentas creadas en RegistBar.</p>
+                                <h2 className="text-2xl font-black text-white">Barberos & Gestión de Planes</h2>
+                                <p className="text-xs text-slate-400">Administra cuentas, activa planes Pro y revisa modelos de negocio.</p>
                             </div>
                             <div className="relative w-full sm:w-64">
                                 <Icon name="search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -763,23 +854,45 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                             </div>
                         </div>
 
+                        {/* Plan Filters Pills */}
+                        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                            {[
+                                { id: 'all', label: `Todos (${users.length})` },
+                                { id: 'pro', label: `Plan Pro / VIP (${users.filter(u => u.subscription_status === 'pro' || u.subscription_status === 'vip').length})` },
+                                { id: 'basic', label: `Básico / Free (${users.filter(u => !u.subscription_status || u.subscription_status === 'basic' || u.subscription_status === 'free').length})` },
+                                { id: 'recent', label: 'Nuevos (Últimos 7 días)' }
+                            ].map((f) => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => setUserPlanFilter(f.id as any)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                        userPlanFilter === f.id
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                    }`}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+
                         {loadingUsers ? (
                             <div className="flex justify-center py-12">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                             </div>
                         ) : filteredUsers.length === 0 ? (
                             <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-12 text-center">
-                                <p className="font-bold text-slate-400 text-sm">No se encontraron barberos.</p>
+                                <p className="font-bold text-slate-400 text-sm">No se encontraron barberos con este filtro.</p>
                             </div>
                         ) : (
                             <div className="grid gap-3">
                                 {filteredUsers.map((u) => (
                                     <div
                                         key={u.id}
-                                        className="bg-slate-800/80 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between gap-3"
+                                        className="bg-slate-800/80 border border-slate-700/80 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                                     >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="size-10 rounded-full bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-black text-sm shrink-0">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className="size-11 rounded-full bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-black text-sm shrink-0">
                                                 {u.email ? u.email.substring(0, 2).toUpperCase() : 'U'}
                                             </div>
                                             <div className="min-w-0">
@@ -787,20 +900,36 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                                                     {u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email}
                                                 </p>
                                                 <p className="text-xs text-slate-400 truncate">{u.email}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-slate-400">
-                                                        Modelo: {u.expense_model === 'rent' ? `$ Arriendo` : `${u.commission_rate || 40}% Comisión`}
+                                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                    <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-slate-400 font-medium">
+                                                        {u.expense_model === 'rent' ? `$ Arriendo` : `${u.commission_rate || 40}% Comisión`}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500">
-                                                        {u.created_at ? new Date(u.created_at).toLocaleDateString('es-CL') : ''}
+                                                        Registrado: {u.created_at ? new Date(u.created_at).toLocaleDateString('es-CL') : 'N/A'}
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <span className="text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-800/40 px-2.5 py-1 rounded-lg shrink-0">
-                                            {u.subscription_status || 'Plan Básico'}
-                                        </span>
+                                        {/* 1-Click Plan Selector */}
+                                        <div className="flex items-center gap-2 self-end sm:self-center bg-slate-900/80 p-1.5 rounded-xl border border-slate-800">
+                                            <span className="text-[10px] font-bold text-slate-500 px-1 uppercase tracking-wider">Plan:</span>
+                                            <select
+                                                value={u.subscription_status || 'free'}
+                                                onChange={(e) => handleUpdateUserPlan(u.id, e.target.value)}
+                                                disabled={updatingUserId === u.id}
+                                                className={`bg-slate-800 text-xs font-bold rounded-lg px-2.5 py-1 border outline-none cursor-pointer ${
+                                                    u.subscription_status === 'pro' || u.subscription_status === 'vip'
+                                                        ? 'text-emerald-400 border-emerald-500/30'
+                                                        : 'text-indigo-300 border-indigo-500/30'
+                                                }`}
+                                            >
+                                                <option value="free">Básico / Free</option>
+                                                <option value="pro">Plan Pro ⭐</option>
+                                                <option value="vip">Plan VIP 👑</option>
+                                                <option value="inactive">Inactivo</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -815,7 +944,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onClose }) => {
                     { id: 'analytics', label: 'Métricas', icon: 'analytics' },
                     { id: 'announcements', label: 'Anuncios', icon: 'campaign' },
                     { id: 'tickets', label: 'Tickets', icon: 'help' },
-                    { id: 'users', label: 'Usuarios', icon: 'group' },
+                    { id: 'users', label: 'Planes', icon: 'group' },
                 ].map((tab) => (
                     <button
                         key={tab.id}
