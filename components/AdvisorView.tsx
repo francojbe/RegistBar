@@ -6,6 +6,7 @@ import { SubscriptionPaywall } from './SubscriptionPaywall';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { trackEvent } from '../utils/analytics';
+import { NotificationBell } from './NotificationBell';
 
 interface Message {
     id: string;
@@ -13,6 +14,10 @@ interface Message {
     text: string;
     timestamp: Date;
     isStreaming?: boolean;
+}
+
+interface AdvisorViewProps {
+    onOpenNotifications?: () => void;
 }
 
 const QUICK_PROMPTS = [
@@ -23,7 +28,7 @@ const QUICK_PROMPTS = [
     { label: '📊 Balance del mes', query: 'Dame un resumen completo de ingresos, gastos y balance de este mes.' }
 ];
 
-export const AdvisorView: React.FC = () => {
+export const AdvisorView: React.FC<AdvisorViewProps> = ({ onOpenNotifications }) => {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -195,6 +200,9 @@ export const AdvisorView: React.FC = () => {
                         </p>
                     </div>
                 </div>
+                {onOpenNotifications && (
+                    <NotificationBell onClick={onOpenNotifications} />
+                )}
             </div>
 
             {/* Chat Area */}

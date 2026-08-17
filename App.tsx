@@ -421,15 +421,6 @@ const App: React.FC = () => {
             </header>
           )}
 
-          {/* Global Floating Notification Bell (Visible on non-home tabs) */}
-          {activeTab !== Tab.Home && (
-            <div className="absolute top-6 right-6 md:right-10 z-40 flex gap-3 pointer-events-none">
-              <div className="pointer-events-auto">
-                <NotificationBell onClick={() => setShowNotifications(true)} />
-              </div>
-            </div>
-          )}
-
           {/* Profile Photo Modal */}
           <ProfilePhotoModal 
             isOpen={showProfilePhoto} 
@@ -485,8 +476,18 @@ const App: React.FC = () => {
                 </motion.div>
               )}
 
-              {activeTab === Tab.Income && <IncomeView onGoToReports={() => setActiveTab(Tab.Reports)} />}
-              {activeTab === Tab.Advisor && <AdvisorView />}
+              {activeTab === Tab.Income && (
+                <IncomeView 
+                  onGoToReports={() => setActiveTab(Tab.Reports)} 
+                  onOpenNotifications={() => setShowNotifications(true)}
+                  onOpenProfilePhoto={() => setShowProfilePhoto(true)}
+                />
+              )}
+              {activeTab === Tab.Advisor && (
+                <AdvisorView 
+                  onOpenNotifications={() => setShowNotifications(true)} 
+                />
+              )}
               {activeTab === Tab.Profile && <ProfileView />}
 
               {activeTab === Tab.Reports && <ReportsView />}

@@ -12,12 +12,15 @@ import { useToast } from '../contexts/ToastContext';
 import { useCurrency } from '../utils/currency';
 import { OfflineService } from '../OfflineService';
 import { EditTransactionModal } from './EditTransactionModal';
+import { NotificationBell } from './NotificationBell';
 
 interface IncomeViewProps {
     onGoToReports: () => void;
+    onOpenNotifications?: () => void;
+    onOpenProfilePhoto?: () => void;
 }
 
-export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
+export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports, onOpenNotifications, onOpenProfilePhoto }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
     const { format, code, symbol } = useCurrency();
@@ -202,10 +205,16 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onGoToReports }) => {
                         <Icon name="menu" size={28} />
                     </button>
                     <h1 className="text-lg font-bold text-slate-900">Registros</h1>
-                    <div
-                        className="size-9 rounded-full bg-cover bg-center ring-2 ring-white shadow-sm"
-                        style={{ backgroundImage: `url("${user?.user_metadata?.avatar_url || 'https://ui-avatars.com/api/?name=' + userName + '&background=random'}")` }}
-                    ></div>
+                    <div className="flex items-center gap-2.5">
+                        {onOpenNotifications && (
+                            <NotificationBell onClick={onOpenNotifications} />
+                        )}
+                        <div
+                            onClick={onOpenProfilePhoto}
+                            className="size-9 rounded-full bg-cover bg-center ring-2 ring-white shadow-sm cursor-pointer active:scale-95 transition-transform"
+                            style={{ backgroundImage: `url("${user?.user_metadata?.avatar_url || 'https://ui-avatars.com/api/?name=' + userName + '&background=random'}")` }}
+                        ></div>
+                    </div>
                 </header>
 
                 {/* Greeting */}
