@@ -427,37 +427,119 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ currentSaved, 
 };
 
 // --- KPI Grid ---
+// --- Interactive Supply Expense KPI Card with Period Switcher ---
+export const SupplyExpenseCard: React.FC<{ transactions?: Transaction[] }> = ({ transactions = [] }) => {
+  const { format } = useCurrency();
+  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+
+  const amount = React.useMemo(() => {
+    const nowAtSantiago = toDate(new Date(), { timeZone: SANTIAGO_TZ });
+    const currentYear = nowAtSantiago.getFullYear();
+    const currentMonthStr = formatInTimeZone(nowAtSantiago, SANTIAGO_TZ, 'yyyy-MM');
+
+    const dayOfWeek = nowAtSantiago.getDay();
+    const diffDay = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const startOfWeek = new Date(nowAtSantiago);
+    startOfWeek.setDate(nowAtSantiago.getDate() + diffDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    let filtered = transactions;
+    if (period === 'weekly') {
+      filtered = transactions.filter(t => {
+        const txDate = toDate(formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM-dd HH:mm:ss'), { timeZone: SANTIAGO_TZ });
+        return txDate >= startOfWeek && txDate <= endOfWeek;
+      });
+    } else if (period === 'monthly') {
+      filtered = transactions.filter(t => {
+        const txMonthStr = formatInTimeZone(new Date(t.rawDate), SANTIAGO_TZ, 'yyyy-MM');
+        return txMonthStr === currentMonthStr;
+      });
+    } else {
+      filtered = transactions.filter(t => new Date(t.rawDate).getFullYear() === currentYear);
+    }
+
+    return filtered
+      .filter(t => t.category === 'supply')
+      .reduce((sum, t) => sum + (Math.abs(Number(t.amount)) || 0), 0);
+  }, [transactions, period]);
+
+  return (
+    <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-hidden border border-slate-100/80">
+      <div className="flex justify-between items-start z-10">
+        <div className="size-10 rounded-full flex items-center justify-center bg-orange-100 text-orange-600">
+          <Icon name="shopping_bag" size={20} />
+        </div>
+
+        {/* Period Selector Tabs */}
+        <div className="flex items-center p-0.5 bg-slate-100 rounded-lg">
+          {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriod(p)}
+              className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
+                period === p
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              {p === 'weekly' ? 'Sem' : p === 'monthly' ? 'Mes' : 'Año'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="z-10">
+        <p className="text-xs font-bold text-slate-900 mb-0.5">Gasto Insumos</p>
+        <p className="text-[11px] font-medium text-slate-400 mb-1.5">
+          {period === 'weekly' ? 'Esta semana' : period === 'monthly' ? 'Este mes' : 'Este año'}
+        </p>
+        <p className="text-xl sm:text-2xl font-black text-rose-600 tracking-tight">
+          {format(amount)}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// --- KPI Grid ---
 interface KpiGridProps {
   items: KPI[];
+  transactions?: Transaction[];
 }
 
-export const KpiGrid: React.FC<KpiGridProps> = ({ items }) => {
+export const KpiGrid: React.FC<KpiGridProps> = ({ items, transactions = [] }) => {
+  const firstItem = items[0] || {
+    label: 'Balance Mensual',
+    value: '$ 0',
+    icon: 'calendar_month',
+    iconBgClass: 'bg-purple-100',
+    iconColorClass: 'text-purple-600'
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {items.map((item, idx) => (
-        <div key={idx} className="bg-white p-6 rounded-[2rem] shadow-soft flex flex-col justify-between gap-2 group hover:-translate-y-1 transition-transform duration-300 relative overflow-hidden">
-
-          <div className="flex justify-between items-start z-10 mb-2">
-            <div className={`size-10 rounded-full flex items-center justify-center ${item.iconBgClass} ${item.iconColorClass}`}>
-              <Icon name={item.icon} size={20} />
-            </div>
-            <button className="text-slate-300 hover:text-slate-600 transition-colors">
-              <Icon name="more_vert" size={20} />
-            </button>
-          </div>
-
-          <div className="z-10">
-            <p className="text-sm font-bold text-slate-900 mb-0.5">{item.label}</p>
-            <p className="text-xs font-medium text-slate-400 mb-2">Total del mes</p>
-            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{item.value}</p>
-          </div>
-
-          {/* Progress Ring / Chart placeholder */}
-          <div className="absolute bottom-4 right-4 text-slate-900/5 dark:text-white/5 opacity-50 scale-150 pointer-events-none">
-            {/* <Icon name={item.icon} size={64} />  Could add a big watermark icon here */}
+    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* Card 1: Balance Mensual */}
+      <div className="bg-white p-5 rounded-[2rem] shadow-soft flex flex-col justify-between gap-3 group hover:-translate-y-0.5 transition-transform duration-300 relative overflow-hidden border border-slate-100/80">
+        <div className="flex justify-between items-start z-10">
+          <div className={`size-10 rounded-full flex items-center justify-center ${firstItem.iconBgClass} ${firstItem.iconColorClass}`}>
+            <Icon name={firstItem.icon} size={20} />
           </div>
         </div>
-      ))}
+
+        <div className="z-10">
+          <p className="text-xs font-bold text-slate-900 mb-0.5">{firstItem.label}</p>
+          <p className="text-[11px] font-medium text-slate-400 mb-1.5">Total del mes</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{firstItem.value}</p>
+        </div>
+      </div>
+
+      {/* Card 2: Interactive Supply Expense Card with Period Switcher */}
+      <SupplyExpenseCard transactions={transactions} />
     </div>
   );
 };

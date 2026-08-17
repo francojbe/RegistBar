@@ -473,7 +473,7 @@ const App: React.FC = () => {
                   )}
 
                   <section data-tour="kpi-grid">
-                    <KpiGrid items={kpis} />
+                    <KpiGrid items={kpis} transactions={allFusedTransactions} />
                   </section>
 
                   <OnboardingChecklist 
